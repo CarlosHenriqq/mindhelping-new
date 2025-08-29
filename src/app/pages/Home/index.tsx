@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { router } from 'expo-router';
+import { ChartLine, Search } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Dimensions, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
 
@@ -22,6 +24,7 @@ export default function Home() {
     const [inputText, setInputText] = useState('');
     const [selectedFeeling, setSelectedFeeling] = useState();
     const [selectedFeelingIndex, setSelectedFeelingIndex] = useState(true);
+    const [searchProf, setSearchProf] = useState('')
     const navigation = useNavigation();
 
     useFocusEffect(
@@ -60,7 +63,7 @@ export default function Home() {
             console.log("Erro ao registrar o sentimento: ", e);
         }
     };
-   
+
     const salvarTexto = async () => {
         if (inputText.trim()) {
             const today = new Date().toISOString().split('T')[0];
@@ -78,7 +81,7 @@ export default function Home() {
                     // Salva o objeto inteiro de volta no AsyncStorage
                     await AsyncStorage.setItem('@dailyFeelings', JSON.stringify(dailyFeelings));
                     console.log(`Nota adicionada: "${inputText}"`);
-                    
+
                 }
 
                 // Limpa e fecha o modal
@@ -94,140 +97,186 @@ export default function Home() {
         }
     };
 
+    async function buscarProfissional() {
+        if (!searchProf.trim()) {
+            Alert.alert('Digite o nome do profissional');
+        } else {
+            try {
+                await AsyncStorage.setItem('searchProf', searchProf);
+                console.log('nome guardado', searchProf)
+                router.replace('/pages/Agendamento');
+            } catch (e) {
+                console.log("Erro ao salvar pesquisa: ", e);
+            }
+        }
+    }
+
 
 
 
     return (
-        <ScrollView style={styles.screen}>
-            
-            <View style={styles.feeling}>
-                <View style={styles.containerUser}>
-                    <View style={styles.textContainer}>
-                        <Text style={styles.userText}>Oi Carlos,</Text>
-                        <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => {
-                        navigation.navigate('Perfil')
-                    }}>
+        <KeyboardAvoidingView style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
+            <ScrollView style={styles.screen}>
 
-                    </TouchableOpacity>
-                </View>
-            </View>
-
-
-            <Carousel
-                loop
-                autoPlay
-                autoPlayInterval={3000}
-                width={width}
-                height={200}
-                data={feelings}
-                scrollAnimationDuration={800}
-                onSnapToItem={(index) => setSelectedFeelingIndex(index)}
-                renderItem={({ item }) => (
-                    <View style={styles.slide}>
+                <View style={styles.feeling}>
+                    <View style={styles.containerUser}>
+                        <View style={styles.textContainer}>
+                            <Text style={styles.userText}>Oi Carlos,</Text>
+                            <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
+                        </View>
                         <TouchableOpacity onPress={() => {
-                            registerFeelingWithTime(item.text);
-                            
-                            setModalSelect(true);
+                            router.replace('/pages/Perfil')
                         }}>
-                            <Image source={item.image} style={styles.img} />
-                        </TouchableOpacity>
-                    </View>
-                )}
-            />
+                            <Image
+                                                    source={{ uri: "https://i.pravatar.cc/150?img=38" }}
+                                                    style={styles.foto}
+                                                />
 
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalSelected}
-                onRequestClose={() => setModalSelect(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Porquê você está se sentindo assim?</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Digite aqui"
-                            value={inputText}
-                            onChangeText={setInputText}
-                        />
-                        <TouchableOpacity
-                            style={styles.modalButton}
-                            onPress={salvarTexto}
-                        >
-                            <Text style={styles.modalButtonText}>Salvar</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-            </Modal>
-            <View style={styles.nextConsulta}>
-                <Text style={styles.textConsulta}>Sua próxima consulta: </Text>
-                <View style={styles.cardConsulta}>
-                    <Text style={styles.nameProf}>Dra. Alessandra</Text>
-                    <Text>Psicóloga</Text>
-                    <View style={styles.dadosPsi}>
-                        <TouchableOpacity>
 
-                        </TouchableOpacity>
-                        <Text style={styles.contatoProf}>alessandra.psi@gmail.com</Text>
-                    </View>
-                    <View style={styles.telePsi}>
-                        <TouchableOpacity>
 
-                        </TouchableOpacity>
-                        <Text style={styles.contatoProf}>18 99756-2102</Text>
+                <Carousel
+                    loop
+                    autoPlay
+                    autoPlayInterval={3000}
+                    width={width}
+                    height={200}
+                    data={feelings}
+                    scrollAnimationDuration={800}
+                    onSnapToItem={(index) => setSelectedFeelingIndex(index)}
+                    renderItem={({ item }) => (
+                        <View style={styles.slide}>
+                            <TouchableOpacity onPress={() => {
+                                registerFeelingWithTime(item.text);
+
+                                setModalSelect(true);
+                            }}>
+                                <Image source={item.image} style={styles.img} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                />
+
+                <Modal
+                    animationType="slide"
+                    transparent={true}
+                    visible={modalSelected}
+                    onRequestClose={() => setModalSelect(false)}
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Porquê você está se sentindo assim?</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Digite aqui"
+                                value={inputText}
+                                onChangeText={setInputText}
+                            />
+                            <TouchableOpacity
+                                style={styles.modalButton}
+                                onPress={salvarTexto}
+                            >
+                                <Text style={styles.modalButtonText}>Salvar</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                    <View style={styles.dadoConsulta}>
-                        <Text style={styles.dateConsulta}>Data</Text>
-                        <Text style={styles.dateConsulta}>Horário</Text>
-                    </View>
-                    <View style={styles.dadosConsulta}>
-                        <Text>15/10/2024</Text>
-                        <Text>16:00h</Text>
-                    </View>
-                    <View>
-                        <Text style={styles.dateConsulta}>Endereço</Text>
-                    </View>
-                    <View>
-                        <Text style={styles.dadosLocConsulta}>Lorem ipsum dolor sit quaerat minus, Birigui - SP </Text>
-                        <View style={styles.maps}>
+                </Modal>
+                <View style={styles.nextConsulta}>
+                    <Text style={styles.textConsulta}>Sua próxima consulta: </Text>
+                    <View style={styles.cardConsulta}>
+                        <Text style={styles.nameProf}>Dra. Alessandra</Text>
+                        <Text>Psicóloga</Text>
+                        <View style={styles.dadosPsi}>
                             <TouchableOpacity>
 
                             </TouchableOpacity>
-                            <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
+                            <Text style={styles.contatoProf}>alessandra.psi@gmail.com</Text>
+                        </View>
+                        <View style={styles.telePsi}>
+                            <TouchableOpacity>
+
+                            </TouchableOpacity>
+                            <Text style={styles.contatoProf}>18 99756-2102</Text>
+                        </View>
+                        <View style={styles.dadoConsulta}>
+                            <Text style={styles.dateConsulta}>Data</Text>
+                            <Text style={styles.dateConsulta}>Horário</Text>
+                        </View>
+                        <View style={styles.dadosConsulta}>
+                            <Text>15/10/2024</Text>
+                            <Text>16:00h</Text>
+                        </View>
+                        <View>
+                            <Text style={styles.dateConsulta}>Endereço</Text>
+                        </View>
+                        <View>
+                            <Text style={styles.dadosLocConsulta}>Lorem ipsum dolor sit quaerat minus, Birigui - SP </Text>
+                            <View style={styles.maps}>
+                                <TouchableOpacity>
+
+                                </TouchableOpacity>
+                                <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
+                            </View>
                         </View>
                     </View>
+
                 </View>
-            </View>
+                <View style={{marginLeft:'6%', marginTop:'6%'}}>
+                    <Text style={{fontFamily:'Nunito', fontSize:16}}>Agende sua próxima consulta:</Text>
+                </View>
+                <View style={styles.searchProf}>
+                    
+                    <TextInput
+                        placeholder='Buscar profissional'
+                        placeholderTextColor={'#4a4a4a'}
+                        style={{ borderRadius: 20, width: '90%' }}
+                        value={searchProf}
+                        onChangeText={setSearchProf}
+                    />
+                    <TouchableOpacity onPress={buscarProfissional}>
+                        <Search size={20} color={'#161616ff'} style={styles.icon} />
+                    </TouchableOpacity>
 
-            <View style={styles.containerRelax}>
-                <Text style={styles.textRelax}>Que tal relaxar?</Text>
-                <View style={styles.grid}>
-                    <TouchableOpacity style={styles.card}>
-                        <Text style={styles.cardText}>Que tal tentarmos meditar?</Text>
+                </View>
+                <View style={{marginLeft:'6.5%', marginTop:'5%', flexDirection:'row', alignItems:'center', gap:5}}>
+                    <ChartLine size={24}/>
+                    <TouchableOpacity onPress={()=>router.replace('/pages/Charts')}>
+                    <Text style={{fontSize:18}}>Acessar meus relatórios</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.card}>
-                        <Text style={styles.cardText}>Ou conversar com a nossa comunidade?</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.card}>
-                        <Text style={styles.cardText}>Talvez um som relaxante</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.card}>
-                        <Text style={styles.cardText}>Por quê não praticar um esporte?</Text>
-                    </TouchableOpacity>
+                    </View>
+
+                <View style={styles.containerRelax}>
+                    <Text style={styles.textRelax}>Que tal relaxar?</Text>
+                    <View style={styles.grid}>
+                        <TouchableOpacity style={styles.card}>
+                            <Text style={styles.cardText}>Que tal tentarmos meditar?</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.card}>
+                            <Text style={styles.cardText}>Ou conversar com a nossa comunidade?</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.card}>
+                            <Text style={styles.cardText}>Talvez um som relaxante</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.card}>
+                            <Text style={styles.cardText}>Por quê não praticar um esporte?</Text>
+                        </TouchableOpacity>
+                    </View>
+
                 </View>
 
-            </View>
-
-        </ScrollView>
+            </ScrollView>
+        </KeyboardAvoidingView>
     );
 };
 
 
 const styles = StyleSheet.create({
     screen: {
-        flex: 1,
+
         backgroundColor: '#ffffff',
 
     },
@@ -250,6 +299,15 @@ const styles = StyleSheet.create({
         fontFamily: 'Roboto-Regular',
         top: 5
     },
+    foto: {
+        width: 50,
+        height: 50,
+        borderRadius: 55,
+        right:5,
+        borderColor: "white",
+        borderWidth: 2,
+        position:'absolute',
+        marginBottom: 12,},
     textFeeling: {
         fontSize: 18,
         fontWeight: 'bold',
@@ -331,7 +389,7 @@ const styles = StyleSheet.create({
     dateConsulta: {
         fontWeight: 'bold',
         fontSize: 16,
-        gap:'50%'
+        gap: '50%'
     },
     dadosConsulta: {
         flexDirection: 'row',
@@ -425,7 +483,7 @@ const styles = StyleSheet.create({
         padding: 10,
         borderWidth: 1,
         borderColor: '#ccc',
-        borderRadius:20,
+        borderRadius: 20,
         marginBottom: 15,
     },
     modalButton: {
@@ -439,6 +497,22 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    searchProf: {
+        marginTop: '5%',
+        borderWidth: 1,
+        borderColor: 'black',
+        width: '90%',
+        borderRadius: 20,
+        alignSelf: 'center',
+        paddingInline: 15,
+        padding: 10,
+        flexDirection: 'row'
+    },
+    icon: {
+        position: 'absolute',
+        right: -35,
+        top: -2,
     },
 });
 

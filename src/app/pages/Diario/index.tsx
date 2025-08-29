@@ -1,177 +1,228 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
-import { Search } from "lucide-react-native";
-import { useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { CalendarProvider, ExpandableCalendar, LocaleConfig } from 'react-native-calendars';
+import { router, useFocusEffect } from "expo-router";
+import { BrushCleaningIcon, Info, Pencil, Search } from "lucide-react-native";
+import React, { useCallback, useState } from "react";
+import { FlatList, ImageBackground, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import * as Animatable from "react-native-animatable";
+import { Calendar, CalendarProvider, LocaleConfig } from 'react-native-calendars';
 
 export default function Diario() {
-  const [anotacoes, setAnotacoes] = useState("");
+    const [anotacoes, setAnotacoes] = useState([]);
+    const [visibleDate, setVisibleDate] = useState(new Date());
+    const [searchText, setSearchText] = useState('');
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [showAddHint, setShowAddHint] = useState(false);
+    const [showCleanHint, setShowCleanHint] = useState(false);
 
-  const meses = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ];
+    // ativa hints ao focar na tela
+    useFocusEffect(
+        useCallback(() => {
+            setShowAddHint(true);
+            setShowCleanHint(true);
 
-  LocaleConfig.locales['pt'] = {
-    monthNames: meses,
-    monthNamesShort: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
-    dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
-    dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
-    today: "Hoje"
-  };
-  LocaleConfig.defaultLocale = 'pt';
+            const timer = setTimeout(() => {
+                setShowAddHint(false);
+                setShowCleanHint(false);
+            }, 3000);
 
-  const today = new Date();
-  const entryDate = today.toISOString().split("T")[0];
+            return () => clearTimeout(timer);
+        }, [])
+    );
 
-  // 🔹 Carrega as anotações do AsyncStorage quando a tela abre
-  useEffect(() => {
-    const fetchAnotacoes = async () => {
-      const diarios = await AsyncStorage.getItem('AnotacaoDiario');
-      setAnotacoes(diarios || ""); // se não existir, vira string vazia
+    const meses = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+
+    LocaleConfig.locales['pt'] = {
+        monthNames: meses,
+        monthNamesShort: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+            'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+        dayNames: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+        dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+        today: "Hoje"
     };
-    fetchAnotacoes();
-  }, []);
+    LocaleConfig.defaultLocale = 'pt';
 
-  return (
-    <View style={styles.container}>
-      {/* 🔍 Caixa de pesquisa */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          placeholder="Pesquisar"
-          placeholderTextColor={'#161616ff'}
-          style={styles.input}
-        />
-        <Search size={20} color={'#161616ff'} style={styles.icon} />
-      </View>
+    const today = new Date();
+    const entryDate = today.toISOString().split("T")[0];
 
-      {/* 📅 Calendário */}
-      <View style={{ marginTop: '40%' }}>
-        <CalendarProvider date={entryDate}>
-          <View style={styles.calendarWrapper}>
-            <ExpandableCalendar
-              initialPosition={"closed"}
-              firstDay={1}
-              locale="pt"
-              renderHeader={(date) => {
-                const d = new Date(date);
-                const mes = meses[d.getMonth()];
-                const ano = d.getFullYear();
-                return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
-              }}
-              theme={{
-                todayTextColor: "#2980B9",
-                selectedDayBackgroundColor: "#2980B9",
-                selectedDayTextColor: "#fff",
-                arrowColor: "#000",
-                textMonthFontWeight: "bold",
-                textDayFontWeight: "500",
-              }}
-            />
-          </View>
-        </CalendarProvider>
+    async function carregarAnotacoes() {
+        try {
+            const data = await AsyncStorage.getItem("@anotacoes");
+            if (data) {
+                setAnotacoes(JSON.parse(data));
+            } else {
+                setAnotacoes([]);
+            }
+        } catch (e) {
+            console.log("Erro ao carregar anotações:", e);
+        }
+    }
 
-        {/* 📖 Lista de anotações */}
-        <View style={{ marginBottom: '75%' }}>
-          {anotacoes.length === 0 ? (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#161616ff', fontWeight: 'bold', fontSize: 16 }}>
-                Nenhuma anotação encontrada
-              </Text>
-            </View>
-          ) : (
-            <View style={{ padding: 10, borderRadius:20, borderWidth:1, backgroundColor:'white', width:'90%', alignSelf:'center' }}>
-              <Text style={{ color: '#161616ff', fontSize: 16 }}>{anotacoes}</Text>
-            </View>
-          )}
+    useFocusEffect(
+        React.useCallback(() => {
+            carregarAnotacoes();
+        }, [])
+    );
+
+    const renderItem = ({ item }) => {
+        const dataFormatada = item.data ? new Date(item.data).toLocaleDateString('pt-BR') : '';
+
+        return (
+            <TouchableOpacity
+                style={styles.anotacaoCard}
+                onPress={() =>
+                    router.push({
+                        pathname: "/pages/Diario/Anotacoes",
+                        params: { anotacao: JSON.stringify(item) } // passa o item como parâmetro
+                    })
+                }
+            >
+                {dataFormatada ? <Text style={styles.anotacaoData}>{dataFormatada}</Text> : null}
+                <Text style={{ color: '#161616ff', fontSize: 16 }}>{item.texto}</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const anotacoesFiltradas = anotacoes.filter(item => {
+        const filtraTexto = item.texto.toLowerCase().includes(searchText.toLowerCase());
+        const filtraData = selectedDate ? item.data.startsWith(selectedDate) : true;
+        return filtraTexto && filtraData;
+    });
+
+    function cleanFilter() {
+        setSearchText('')
+        setSelectedDate(null)
+    }
+
+    return (
+        <View style={styles.container}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ImageBackground
+                    source={require('../../../../assets/images/gradiente.png')}
+                    style={{ flex: 1 }}
+                    blurRadius={20}
+                >
+                    {/* 🔍 Caixa de pesquisa */}
+                    <View style={styles.searchContainer}>
+                        <TextInput
+                            placeholder="Pesquisar anotações"
+                            placeholderTextColor={'#161616ff'}
+                            style={styles.input}
+                            value={searchText}
+                            onChangeText={setSearchText}
+                        />
+                        <Search size={20} color={'#161616ff'} style={styles.icon} />
+                    </View>
+
+                    {/* 📅 Calendário + Lista */}
+                    <CalendarProvider date={entryDate}>
+                        <View style={{ flex: 1, marginTop: '5%' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: '-2%', marginLeft: '6%', marginBottom: '3%', width: '90%', borderRadius: 20, height: '4%', padding: 5 }}>
+                                <Info size={20} color={'black'} />
+                                <Text>Utilize o calendário para filtrar suas anotações</Text>
+                            </View>
+                            <View style={styles.calendarWrapper}>
+                                <Calendar
+                                    current={visibleDate.toISOString().split('T')[0]}
+                                    renderHeader={(date) => {
+                                        const mes = meses[date.getMonth()];
+                                        const ano = date.getFullYear();
+                                        return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
+                                    }}
+                                    style={{ width: 350, margin: 10 }}
+                                    firstDay={1}
+                                    onMonthChange={(month) => setVisibleDate(new Date(month.dateString))}
+                                    onDayPress={(day) => {
+                                        setSelectedDate(day.dateString);
+                                    }}
+                                />
+                            </View>
+
+                            {/* 📖 Lista de anotações */}
+                            <View style={styles.listContainer}>
+                                {anotacoes.length === 0 ? (
+                                    <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                                        <Text style={{ color: '#161616ff', fontWeight: 'bold', fontSize: 16 }}>
+                                            Nenhuma anotação encontrada
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    <FlatList
+                                        data={anotacoesFiltradas}
+                                        keyExtractor={(item, index) => index.toString()}
+                                        renderItem={renderItem}
+                                        contentContainerStyle={{ paddingBottom: 80 }}
+                                    />
+                                )}
+                            </View>
+                        </View>
+                    </CalendarProvider>
+
+                    {/* ➕ Botão Nova Nota */}
+                    <TouchableOpacity
+                        style={styles.newMetaContainer}
+                        onPress={() => router.replace("/pages/Diario/Anotacoes")}
+                    >
+                        <Pencil color={'#ffffff'} size={24} />
+                        {showAddHint && (
+                            <Animatable.View
+                                animation="fadeInLeft"
+                                duration={1500}
+                                style={styles.hintBox}
+                            >
+                                <Text style={styles.hintText}>Adicionar nota</Text>
+                            </Animatable.View>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* 🧹 Botão Limpar Filtros */}
+                    <TouchableOpacity
+                        style={styles.refreshContainer}
+                        onPress={cleanFilter}
+                    >
+                        <BrushCleaningIcon color={'#ffffff'} size={24} />
+                        {showCleanHint && (
+                            <Animatable.View
+                                animation="fadeInLeft"
+                                duration={1500}
+                                style={styles.hintBox}
+                            >
+                                <Text style={styles.hintText}>Limpar filtros</Text>
+                            </Animatable.View>
+                        )}
+                    </TouchableOpacity>
+
+                </ImageBackground>
+            </TouchableWithoutFeedback>
         </View>
-      </View>
-
-      {/* ➕ Botão Nova Nota */}
-      <TouchableOpacity
-        style={styles.newMetaContainer}
-        onPress={() => router.replace("/pages/Diario/Anotacoes")}
-      >
-        <Text style={{
-          color: 'white',
-          fontWeight: 'bold',
-          fontSize: 35,
-          position: 'absolute',
-          bottom: '20%',
-          right: '30%'
-        }}>+</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
 }
 
-
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    searchContainer: {
-        width: '90%',
-        position: 'absolute',
-        bottom: '85%'
-    },
+    container: { flex: 1, backgroundColor: "#f5f5f5" },
+    searchContainer: { width: '90%', alignSelf: 'center', marginTop: '15%' },
     input: {
-        borderWidth: 1,
-        borderRadius: 20,
-        height: 50,
-        paddingLeft: 40, // espaço para o ícone
-        paddingRight: 15,
-        fontSize: 16,
-        backgroundColor: 'white',
-        borderColor: 'transparent',
-        elevation: 5, // sombra no Android
-        shadowColor: "#000", // sombra no iOS
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
+        borderWidth: 1, borderRadius: 20, height: 50,
+        paddingLeft: 40, paddingRight: 15, fontSize: 16,
+        backgroundColor: 'white', borderColor: 'transparent',
+        elevation: 5, shadowColor: "#000", shadowOpacity: 0.1,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     },
-    icon: {
-        position: 'absolute',
-        left: 12,
-        top: 13,
-    },
-    calendarHeaderText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
-        textAlign: 'center',
-        fontFamily: 'Nunito',
-        bottom: 3,
-    },
+    icon: { position: 'absolute', left: 12, top: 13 },
     calendarWrapper: {
-        width: "100%",
-        borderRadius: 20,
-        overflow: "hidden", // mantém bordas arredondadas
-        backgroundColor: "#fff",
-        elevation: 5, // sombra no Android
-        shadowColor: "#000", // sombra no iOS
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 }
+        width: "90%", alignSelf: "center", borderRadius: 20,
+        backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd",
+        overflow: "hidden", elevation: 5, shadowColor: "#000",
+        shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
     },
-    newMetaContainer: {
-        position: 'absolute',
-        bottom: 20,
-        right: 20,
-        backgroundColor: '#2980B9',
-        width: 60,
-        height: 60,
-        borderRadius: 50,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        shadowOffset: { width: 2, height: 2 },
-        elevation: 5,
-    },
+    calendarHeaderText: { fontSize: 16, fontWeight: 'bold', color: '#000', textAlign: 'center', bottom: 3 },
+    listContainer: { flex: 1, width: '90%', alignSelf: 'center', marginTop: 10 },
+    anotacaoCard: { padding: 15, borderRadius: 20, borderWidth: 1, borderColor: '#eee', backgroundColor: 'white', marginBottom: 10 },
+    anotacaoData: { fontSize: 12, color: '#888', marginBottom: 5, fontWeight: 'bold' },
+    newMetaContainer: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#2980B9', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
+    refreshContainer: { position: 'absolute', bottom: 100, right: 20, backgroundColor: '#2980B9', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
+    hintBox: { position: "absolute", right: 70, width: 130, height: 30, backgroundColor: '#2980B9', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    hintText: { color: '#fff', fontWeight: 'bold', fontSize: 14 }
 });

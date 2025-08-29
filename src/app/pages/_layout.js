@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { ChartBar, HomeIcon, NotebookTabs, Phone, Trophy } from 'lucide-react-native';
+import { HomeIcon, NotebookTabs, Phone } from 'lucide-react-native';
 import { Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -30,15 +30,7 @@ export default function TabLayout() {
       }}
     >
       
-       <Tabs.Screen
-        name="Metas/index"
-        options={{
-          title: 'Metas',
-          tabBarIcon: ({ color }) => (
-            <Trophy name="trophy" color={color} size={25}/>
-          ),
-        }}
-      />
+       
       <Tabs.Screen
         name="Diario/index"
         options={{
@@ -66,21 +58,37 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="Charts/index"
-        options={{
-          title: 'Relatórios',
-          tabBarIcon: ({ color }) => (
-            <ChartBar name="chart" color={color} size={25}/>
-          ),
-        }}
-      />
+      
       <Tabs.Screen 
         name="Charts/Month/index" // ou o nome do seu arquivo
         options={{ href: null }} 
       />
       <Tabs.Screen 
         name="Diario/Anotacoes/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Agendamento/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Agendamento/Agendar/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Perfil/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+         <Tabs.Screen 
+        name="Metas/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+       <Tabs.Screen 
+        name="Charts/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Perfil/editPerfil/index" // ou o nome do seu arquivo
         options={{ href: null }} 
       />
     </Tabs>

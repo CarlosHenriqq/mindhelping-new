@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { ChartLine, Search } from 'lucide-react-native';
+import { ChartLine } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { Alert, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Button, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
 
@@ -97,21 +97,6 @@ export default function Home() {
         }
     };
 
-    async function buscarProfissional() {
-        if (!searchProf.trim()) {
-            Alert.alert('Digite o nome do profissional');
-        } else {
-            try {
-                await AsyncStorage.setItem('searchProf', searchProf);
-                console.log('nome guardado', searchProf)
-                router.replace('/pages/Agendamento');
-            } catch (e) {
-                console.log("Erro ao salvar pesquisa: ", e);
-            }
-        }
-    }
-
-
 
 
     return (
@@ -130,9 +115,9 @@ export default function Home() {
                             router.replace('/pages/Perfil')
                         }}>
                             <Image
-                                                    source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                                                    style={styles.foto}
-                                                />
+                                source={{ uri: "https://i.pravatar.cc/150?img=38" }}
+                                style={styles.foto}
+                            />
 
                         </TouchableOpacity>
                     </View>
@@ -225,29 +210,19 @@ export default function Home() {
                     </View>
 
                 </View>
-                <View style={{marginLeft:'6%', marginTop:'6%'}}>
-                    <Text style={{fontFamily:'Nunito', fontSize:16}}>Agende sua próxima consulta:</Text>
+                <View style={{ marginLeft: '6%', marginTop: '6%' }}>
+                    <Text style={{ fontFamily: 'Nunito', fontSize: 16 }}>Agende sua próxima consulta:</Text>
                 </View>
                 <View style={styles.searchProf}>
-                    
-                    <TextInput
-                        placeholder='Buscar profissional'
-                        placeholderTextColor={'#4a4a4a'}
-                        style={{ borderRadius: 20, width: '90%' }}
-                        value={searchProf}
-                        onChangeText={setSearchProf}
-                    />
-                    <TouchableOpacity onPress={buscarProfissional}>
-                        <Search size={20} color={'#161616ff'} style={styles.icon} />
-                    </TouchableOpacity>
+                    <Button title='Procurar Profissionais' onPress={()=> router.replace('/pages/Agendamento')} color={'black'}/>
 
                 </View>
-                <View style={{marginLeft:'6.5%', marginTop:'5%', flexDirection:'row', alignItems:'center', gap:5}}>
-                    <ChartLine size={24}/>
-                    <TouchableOpacity onPress={()=>router.replace('/pages/Charts')}>
-                    <Text style={{fontSize:18}}>Acessar meus relatórios</Text>
+                <View style={{ marginLeft: '6.5%', marginTop: '5%', flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                    <ChartLine size={24} />
+                    <TouchableOpacity onPress={() => router.replace('/pages/Charts')}>
+                        <Text style={{ fontSize: 18 }}>Acessar meus relatórios</Text>
                     </TouchableOpacity>
-                    </View>
+                </View>
 
                 <View style={styles.containerRelax}>
                     <Text style={styles.textRelax}>Que tal relaxar?</Text>
@@ -303,11 +278,12 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 55,
-        right:5,
+        right: 5,
         borderColor: "white",
         borderWidth: 2,
-        position:'absolute',
-        marginBottom: 12,},
+        position: 'absolute',
+        marginBottom: 12,
+    },
     textFeeling: {
         fontSize: 18,
         fontWeight: 'bold',
@@ -505,8 +481,10 @@ const styles = StyleSheet.create({
         width: '90%',
         borderRadius: 20,
         alignSelf: 'center',
+        justifyContent:"center",
         paddingInline: 15,
-        padding: 10,
+        padding: 0,
+        
         flexDirection: 'row'
     },
     icon: {

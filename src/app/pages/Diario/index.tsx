@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { BrushCleaningIcon, Info, Pencil, Search } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import { FlatList, ImageBackground, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import { FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import * as Animatable from "react-native-animatable";
 import { Calendar, CalendarProvider, LocaleConfig } from 'react-native-calendars';
 
@@ -99,11 +100,10 @@ export default function Diario() {
     return (
         <View style={styles.container}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                <ImageBackground
-                    source={require('../../../../assets/images/gradiente.png')}
-                    style={{ flex: 1 }}
-                    blurRadius={20}
-                >
+                <LinearGradient
+                                   colors={['#eff6ff', '#dbeafe']}
+                                   style={styles.background}
+                               >
                     {/* 🔍 Caixa de pesquisa */}
                     <View style={styles.searchContainer}>
                         <TextInput
@@ -165,7 +165,7 @@ export default function Diario() {
                         style={styles.newMetaContainer}
                         onPress={() => router.replace("/pages/Diario/Anotacoes")}
                     >
-                        <Pencil color={'#ffffff'} size={24} />
+                        <Pencil color={'#000000'} size={24} />
                         {showAddHint && (
                             <Animatable.View
                                 animation="fadeInLeft"
@@ -182,7 +182,7 @@ export default function Diario() {
                         style={styles.refreshContainer}
                         onPress={cleanFilter}
                     >
-                        <BrushCleaningIcon color={'#ffffff'} size={24} />
+                        <BrushCleaningIcon color={'#000000'} size={24} />
                         {showCleanHint && (
                             <Animatable.View
                                 animation="fadeInLeft"
@@ -194,35 +194,63 @@ export default function Diario() {
                         )}
                     </TouchableOpacity>
 
-                </ImageBackground>
+                </LinearGradient>
             </TouchableWithoutFeedback>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#f5f5f5" },
-    searchContainer: { width: '90%', alignSelf: 'center', marginTop: '15%' },
-    input: {
-        borderWidth: 1, borderRadius: 20, height: 50,
-        paddingLeft: 40, paddingRight: 15, fontSize: 16,
-        backgroundColor: 'white', borderColor: 'transparent',
-        elevation: 5, shadowColor: "#000", shadowOpacity: 0.1,
-        shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    background:{
+        flex:1
     },
-    icon: { position: 'absolute', left: 12, top: 13 },
+    container: { 
+        flex:1,
+        backgroundColor: "#f5f5f5" },
+    searchContainer: { 
+        width: '90%', 
+        alignSelf: 'center', 
+        marginTop: '15%' },
+    input: {
+        borderWidth: 1, 
+        borderRadius: 20, 
+        height: 50,
+        paddingLeft: 40, 
+        paddingRight: 15, 
+        fontSize: 16,
+        backgroundColor: 'white', 
+        borderColor: 'transparent',
+        elevation: 5, 
+        shadowColor: "#000", 
+        shadowOpacity: 0.1,
+        shadowRadius: 8, 
+        shadowOffset: { width: 0, height: 2 },
+    },
+    icon: { 
+        position: 'absolute', 
+        left: 12, 
+        top: 13 },
+
     calendarWrapper: {
-        width: "90%", alignSelf: "center", borderRadius: 20,
-        backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd",
-        overflow: "hidden", elevation: 5, shadowColor: "#000",
-        shadowOpacity: 0.1, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+        width: "90%", 
+        alignSelf: "center",
+         borderRadius: 20,
+        backgroundColor: "#fff", 
+        borderWidth: 1, 
+        borderColor: "#ddd",
+        overflow: "hidden", 
+        elevation: 5, 
+        shadowColor: "#000",
+        shadowOpacity: 0.1, 
+        shadowRadius: 8, 
+        shadowOffset: { width: 0, height: 2 },
     },
     calendarHeaderText: { fontSize: 16, fontWeight: 'bold', color: '#000', textAlign: 'center', bottom: 3 },
     listContainer: { flex: 1, width: '90%', alignSelf: 'center', marginTop: 10 },
     anotacaoCard: { padding: 15, borderRadius: 20, borderWidth: 1, borderColor: '#eee', backgroundColor: 'white', marginBottom: 10 },
     anotacaoData: { fontSize: 12, color: '#888', marginBottom: 5, fontWeight: 'bold' },
-    newMetaContainer: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#2980B9', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
-    refreshContainer: { position: 'absolute', bottom: 100, right: 20, backgroundColor: '#2980B9', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
-    hintBox: { position: "absolute", right: 70, width: 130, height: 30, backgroundColor: '#2980B9', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-    hintText: { color: '#fff', fontWeight: 'bold', fontSize: 14 }
+    newMetaContainer: { position: 'absolute', bottom: 20, right: 20, backgroundColor: '#b1bfd1ff', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
+    refreshContainer: { position: 'absolute', bottom: 100, right: 20, backgroundColor: '#b1bfd1ff', width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', elevation: 8 },
+    hintBox: { position: "absolute", right: 70, width: 130, height: 30, backgroundColor: '#b1bfd1ff', borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    hintText: { color: '#000000', fontWeight: 'bold', fontSize: 14 }
 });

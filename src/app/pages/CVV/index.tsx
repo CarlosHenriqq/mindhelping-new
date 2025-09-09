@@ -1,10 +1,8 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { ChevronLeft, Phone } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import {
   Alert,
-  Animated,
   Image,
   PermissionsAndroid,
   Platform,
@@ -14,79 +12,78 @@ import {
   View
 } from 'react-native';
 import ImmediatePhoneCall from 'react-native-immediate-phone-call';
-import ImmersiveMode from 'react-native-immersive-mode';
 
 const Call = () => {
-  const [legenda , setLegenda] = useState(false)
-  const navigation = useNavigation();
+  // 1. Hook useFocusEffect para o modo imersivo
+  // É mais adequado para efeitos visuais que devem ser aplicados/removidos quando a tela ganha/perde foco.
+ ImmediatePhoneCall.immediatePhoneCall('188');
 
-  // 1) valor animado para controlar a posição Y da legenda (deslizando)
-  const slideAnim = useRef(new Animated.Value(100)).current;  // Começa fora da tela, abaixo
 
-  // 2) animação para deslizar a legenda quando a tela for carregada
-  useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: 0,  // Move para a posição normal
-      duration: 500,  // Duração da animação
-      useNativeDriver: true,
-    }).start();
-    setLegenda(true)
-  }, []);  // Apenas quando o componente é montado
+  // 2. Função para realizar a ligação
+  async function makePhoneCall() {
+    const phoneNumber = '188'; // CVV
 
-  useFocusEffect(
-    React.useCallback(() => {
-      ;
-      ImmersiveMode.setBarMode('Bottom');
-      return () => ImmersiveMode.setBarMode('Normal');
-    }, [])
-  );
-
-  async function ligar188() {
     if (Platform.OS === 'android') {
-      const ok = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CALL_PHONE
-      );
-      if (ok !== PermissionsAndroid.RESULTS.GRANTED) {
-        return Alert.alert('Permissão negada');
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CALL_PHONE
+        );
+        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+          Alert.alert('Permissão Negada', 'Você precisa conceder permissão para fazer ligações.');
+          return;
+        }
+        console.log('talvez funcionou')
+      } catch (err) {
+        console.log(err);
+        return;
       }
     }
-    ImmediatePhoneCall.immediatePhoneCall('188');
+    
+    // Se a permissão foi concedida (ou se for iOS), faz a ligação.
+    ImmediatePhoneCall.immediatePhoneCall(phoneNumber);
   }
+  
+  // 3. Função de navegação corrigida
+  const handleGoBack = () => {
+    // No Expo Router, é mais comum usar `router.back()` para voltar.
+    // Se quiser ir para uma rota específica, use o caminho do arquivo, ex: '/home'
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/home'); // Rota de fallback
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.Seta}>
-        <TouchableOpacity onPress={() => router.replace('/pages/Home')} style={styles.botaoVoltar}>
-          <ChevronLeft/>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
+          <ChevronLeft color="#333" size={28} />
           <Text style={styles.textoVoltar}>Voltar</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={{marginTop:'20%'}}>
-        <Text style={{ fontSize: 20, fontFamily:'Nunito'}}>NÃO ESTÁ SE SENTINDO BEM</Text>
-        <Text style={{ fontSize: 20, fontWeight: 'bold', alignSelf: 'center',fontFamily:'Nunito' }}>E PRECISA CONVERSAR?</Text>
-        <Text style={{ fontSize: 25, top: 35, alignSelf: 'center', fontFamily:'Nunito' }}>LIGUE PARA O CVV</Text>
+      <View style={styles.content}>
+        <Text style={styles.title}>NÃO ESTÁ SE SENTINDO BEM</Text>
+        <Text style={styles.subtitle}>E PRECISA CONVERSAR?</Text>
+        <Text style={styles.mainActionText}>LIGUE PARA O CVV</Text>
 
-        <View style={styles.ContainerImagem}>
+        <View style={styles.imageContainer}>
           <Image
             source={require('../../../../assets/images/cvv.png')}
             style={styles.imagem}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         </View>
       </View>
 
-      <View>
-        <TouchableOpacity style={styles.containerCall} onPress={ligar188}>
-          <Phone color={'white'}/>
-          <Text style={styles.texto}> APERTE AQUI PARA LIGAR</Text>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.containerCall} onPress={makePhoneCall}>
+          <Phone color={'white'} size={24} />
+          <Text style={styles.callButtonText}>APERTE AQUI PARA LIGAR</Text>
         </TouchableOpacity>
+        <Text style={styles.availabilityText}>Ligações disponíveis 24h</Text>
       </View>
-
-      <Text style={{ color: 'black', bottom:40,fontFamily:'Nunito' }}>Ligações disponíveis 24h</Text>
-
-      
-   
     </View>
   );
 };
@@ -96,97 +93,85 @@ export default Call;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor:'#ffffff'
+    backgroundColor: '#ffffff',
+    justifyContent: 'space-between', // Distribui o espaço
   },
-  Seta: {
+  header: {
     position: 'absolute',
-    top: '5%',
-    left: 10,
-    alignItems: 'flex-start',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 15,
+    zIndex: 10,
   },
   botaoVoltar: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  imagemSetaHeader: {
-    width: 20,
-    height: 30,
-    marginTop: 10,
-    marginBottom: 10,
-    marginRight: 5,
-    transform: [{ scaleX: -1 }],
-  },
   textoVoltar: {
-    fontSize: 16,
+    fontSize: 18,
+    color: '#333',
+    marginLeft: 5,
   },
-  ContainerImagem: {
-    alignItems: 'center',
+  content: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginTop: -40, // Compensa o espaço do footer
+  },
+  title: {
+    fontSize: 20,
+    fontFamily: 'Nunito',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    fontFamily: 'Nunito',
+    textAlign: 'center',
+  },
+  mainActionText: {
+    fontSize: 25,
+    marginTop: '10%',
+    fontFamily: 'Nunito',
+    fontWeight: 'bold',
+  },
+  imageContainer: {
+    width: '80%',
+    height: '45%',
+    marginTop: '5%',
   },
   imagem: {
     width: '100%',
-    height: '60%',
-    padding: 20,
-    borderRadius:20,
-    borderWidth:1,
-    shadowColor: '#000000',
-        shadowRadius: 8,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
-        borderColor:'transparent'
+    height: '100%',
+  },
+  footer: {
+    paddingBottom: 40,
+    alignItems: 'center',
   },
   containerCall: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#00BBF4',
+    borderRadius: 30,
     backgroundColor: '#00BBF4',
-    width: 293,
-    height: 34,
+    width: '80%',
+    paddingVertical: '2%',
     flexDirection: 'row',
-    gap:5,
-    bottom: 40,
-    marginBottom:'5%',
-    alignItems:'center',
-    justifyContent:'center',
-    shadowColor: '#000000',
-        shadowRadius: 8,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
-  imgPhone: {
-    width: 30,
-    height: 30,
-  },
-  texto: {
+  callButtonText: {
     fontSize: 18,
     color: 'white',
-    textAlignVertical: 'center',
     fontWeight: 'bold',
-    fontFamily:'Roboto'
+    marginLeft: 10,
   },
-  iconWrapper: {
-    borderRadius:20,
-    borderWidth:2,
-    position: 'absolute',
-    bottom: 40,
-    right: 20,
-    alignItems: 'center',
-    borderColor:'transparent',
-    padding:10,
-    backgroundColor:'#ffffff',
-    shadowColor: '#000000',
-        shadowRadius: 8,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
-  },
-  tooltip: {
-    marginTop: 8,
-    fontSize: 14,
-    color: 'gray',
+  availabilityText: {
+    color: 'black',
+    marginTop: '5%',
+    fontFamily: 'Nunito',
+    fontSize:16
   },
 });

@@ -1,15 +1,27 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Alert, ImageBackground, Keyboard, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
-import { TextInput } from "react-native-gesture-handler";
+import {
+    Alert,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput, // <-- 1. IMPORTAÇÃO CORRIGIDA
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
+} from "react-native";
 
 export default function Anotacoes() {
     const { anotacao } = useLocalSearchParams();
 
     const [anotacaoTexto, setAnotacaoTexto] = useState('');
-    const [anotacaoId, setAnotacaoId] = useState(null); // armazena o id caso seja edição
+    const [anotacaoId, setAnotacaoId] = useState(null);
     const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio',
         'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -28,7 +40,7 @@ export default function Anotacoes() {
 
     const handleSalvar = async () => {
         if (!anotacaoTexto.trim()) {
-            Alert.alert('Digite alguma informação para salvar.');
+            Alert.alert('Anotação vazia', 'Por favor, digite algo para salvar.');
             return;
         }
 
@@ -37,14 +49,14 @@ export default function Anotacoes() {
             const arr = stored ? JSON.parse(stored) : [];
 
             if (anotacaoId) {
-                // se existe id, atualiza a anotação
+                // Atualiza a anotação existente
                 const index = arr.findIndex(a => a.id === anotacaoId);
                 if (index !== -1) {
                     arr[index].texto = anotacaoTexto;
                     arr[index].data = today.toISOString();
                 }
             } else {
-                // nova anotação
+                // Cria uma nova anotação
                 const novaNota = {
                     id: Date.now().toString(),
                     texto: anotacaoTexto,
@@ -54,131 +66,157 @@ export default function Anotacoes() {
             }
 
             await AsyncStorage.setItem('@anotacoes', JSON.stringify(arr));
-            setAnotacaoTexto('');
             router.replace("/pages/Diario");
         } catch (e) {
             console.error("Erro ao salvar anotação", e);
+            Alert.alert('Erro', 'Não foi possível salvar a anotação.');
         }
     };
 
     return (
-        <ImageBackground
-            source={require('../../../../../assets/images/gradiente.png')}
-            style={{ flex: 1 }}
-            blurRadius={20}
+        <LinearGradient
+            colors={['#eff6ff', '#dbeafe']}
+            style={styles.background}
         >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                <View style={{ flex: 1 }}>
-                    <View style={styles.Seta}>
-                        <TouchableOpacity onPress={() => router.replace("/pages/Diario")} style={styles.botaoVoltar}>
-                            <ChevronLeft color="black" />
-                        </TouchableOpacity>
-                        <Text style={{ color: 'black', fontSize: 18, fontWeight: 700, fontFamily: 'Nunito' }}>Voltar</Text>
-                    </View>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    {/* 2. CONTAINER PRINCIPAL CORRIGIDO PARA USAR flex: 1 */}
+                    <View style={styles.mainContainer}>
+                        <View style={styles.header}>
+                            <TouchableOpacity onPress={() => router.replace("/pages/Diario")} style={styles.backButton}>
+                                <ChevronLeft color="#333" size={24} />
+                                <Text style={styles.backButtonText}>Voltar</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 24, fontFamily: 'Nunito', fontWeight: 700, color: 'black' }}>
+                        <Text style={styles.title}>
                             {anotacaoId ? "Editar Anotação" : "Nova Anotação"}
                         </Text>
-                    </View>
 
-                    <View style={styles.dataContainer}>
-                        <Text>{diaSemana}, {today.getDate()} de {mes} de {today.getFullYear()}</Text>
-                    </View>
+                        <View style={styles.dateContainer}>
+                            <Text style={styles.dateText}>{diaSemana}, {today.getDate()} de {mes} de {today.getFullYear()}</Text>
+                        </View>
 
-                    <View style={styles.boxWrapper}>
-                        <ScrollView style={styles.box}>
+                        {/* 3. ÁREA DE TEXTO AGORA OCUPA O ESPAÇO CORRETAMENTE */}
+                        <View style={styles.inputContainer}>
                             <TextInput
-                                placeholder="Digite aqui"
-                                placeholderTextColor={'#3a3a3aff'}
+                                placeholder="Comece a escrever aqui..."
+                                placeholderTextColor={'#9ca3af'}
                                 style={styles.input}
                                 multiline={true}
                                 onChangeText={setAnotacaoTexto}
                                 value={anotacaoTexto}
                             />
-                        </ScrollView>
-                    </View>
+                        </View>
 
-                    <View style={{ alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 12 }}>
                         <TouchableOpacity
                             onPress={handleSalvar}
-                            style={{
-                                backgroundColor: '#2980B9',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: 20,
-                                width: '40%',
-                                padding: 5,
-                                marginTop: '5%',
-                                marginBottom: '5%',
-                                shadowColor: '#000000',
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.2,
-                                shadowRadius: 8,
-                                elevation: 5,
-                            }}>
-                            <Text style={{ textAlign: 'center', color: '#ffffff', fontFamily: 'Nunito', fontWeight: 700, fontSize: 18 }}>
-                                {anotacaoId ? "Atualizar" : "Anotar"}
+                            style={styles.saveButton}>
+                            <Text style={styles.saveButtonText}>
+                                {anotacaoId ? "Atualizar" : "Salvar"}
                             </Text>
                         </TouchableOpacity>
                     </View>
-                </View>
-            </TouchableWithoutFeedback>
-        </ImageBackground>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     )
 }
 
 const styles = StyleSheet.create({
-    dataContainer: {
+    background: {
+        flex: 1,
+    },
+    mainContainer: {
+        flex: 1,
+        paddingTop: StatusBar.currentHeight || 40,
+        paddingHorizontal: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    backButtonText: {
+        color: '#333',
+        fontSize: 18,
+        fontWeight: '600',
+        fontFamily: 'Nunito',
+        marginLeft: 5,
+    },
+    title: {
+        fontSize: 28,
+        fontFamily: 'Nunito',
+        fontWeight: '700',
+        color: '#111827',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    dateContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: '3%',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'transparent',
-        backgroundColor: '#e9e1e1ff',
-        width: '88%',
+        marginBottom: 20,
+        backgroundColor: '#fff',
         padding: 10,
+        borderRadius: 12,
         alignSelf: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    boxWrapper: {
-        flex: 1,
-        marginTop: '5%',
-        marginHorizontal: '6%',
+    dateText: {
+        fontSize: 14,
+        color: '#4b5563',
+        fontWeight: '500',
+    },
+    inputContainer: {
+        flex: 1, // <-- FAZ O CONTAINER DO TEXTO OCUPAR O RESTO DA TELA
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
-        backgroundColor: '#e9e1e1ff',
+        padding: 15,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 5,
-    },
-    box: {
-        flex: 1,
-        paddingLeft: 15,
-        paddingTop: 15,
-        borderRadius: 20,
-        backgroundColor: 'transparent',
+        marginBottom: 20,
     },
     input: {
         flex: 1,
         fontSize: 16,
         textAlignVertical: 'top',
+        lineHeight: 24,
+        color: '#1f2937',
     },
-    Seta: {
+    saveButton: {
+        backgroundColor: '#2980B9',
+        borderRadius: 15,
+        paddingVertical: 15,
         alignItems: 'center',
-        flexDirection: 'row',
-        gap: 5,
-        marginTop: StatusBar.currentHeight || '9%',
+        justifyContent: 'center',
+        marginBottom: 20, // Espaço para o teclado não cobrir
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
     },
-    botaoVoltar: {
-        padding: 10,
-        borderRadius: 5,
-        left: 10,
+    saveButtonText: {
+        color: '#ffffff',
+        fontFamily: 'Nunito',
+        fontWeight: '700',
+        fontSize: 18
     },
 });
+

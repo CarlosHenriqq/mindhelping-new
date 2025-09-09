@@ -12,9 +12,7 @@ export default function Login() {
     const router = useRouter();
     const [toggleCheck, setToggleCheck] = useState(false);
 
-    const handleNavigateToHome = () => {
-        router.push('/pages/Home/index')
-    }
+   
 
 
     return (
@@ -101,7 +99,7 @@ const styles = StyleSheet.create({
     imagem: {
         width: width * 1.0,
         height: '40%',
-        marginBottom: 0,
+        
     },
     titulo: {
         fontSize: 24,

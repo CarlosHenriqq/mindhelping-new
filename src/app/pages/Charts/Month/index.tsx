@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
-import { Alert, ImageBackground, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import FeelingsChart from '../../../../../components/feelingCharts'; // Importando seu componente customizado
 
 export default function ChartMonth() {
@@ -99,10 +100,9 @@ export default function ChartMonth() {
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior="padding">
-            <ImageBackground
-                source={require('../../../../../assets/images/gradiente.png')}
-                style={styles.gradientBackground}
-                blurRadius={20}
+            <LinearGradient
+                colors={['#eff6ff', '#dbeafe']}
+                style={styles.background}
             >
                 <View style={styles.header}>
                     <Text style={styles.title}>Relatório Mensal</Text>
@@ -160,7 +160,7 @@ export default function ChartMonth() {
                         style={{ marginLeft: '6%' }} // O valor atual (ligado ou desligado)
                     /><Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 16 }}>Compartilhar Dados com meu profissional</Text>
                 </View>
-            </ImageBackground>
+            </LinearGradient>
         </KeyboardAvoidingView>
     );
 }
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#ffffff',
     },
-    gradientBackground: {
+    background: {
         flex: 1
     },
     header: {
@@ -257,6 +257,6 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
 
         paddingTop: 10,
-        paddingBottom:10 // Adiciona um espaço no topo
+        paddingBottom: 10 // Adiciona um espaço no topo
     }
 });

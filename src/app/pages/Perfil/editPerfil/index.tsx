@@ -1,22 +1,42 @@
-import { Calendar, Camera, ChevronDown, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient"; // <-- 1. CORREÇÃO CRÍTICA
+import {
+    Calendar,
+    Camera,
+    ChevronDown,
+    ChevronUp,
+    IdCard,
+    Mail,
+    MapPin,
+    Phone,
+    User
+} from "lucide-react-native";
 import { useState } from "react";
-import { Image, ImageBackground, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 
 export default function EditPerfil() {
-    const [errors, setErrors] = useState({});
     const [name, setName] = useState("Juliana Alves da Silva");
     const [birthDate, setBirthDate] = useState("01/01/2000");
     const [phone, setPhone] = useState("(18) 99999-9999");
     const [email, setEmail] = useState("julianaalves@gmail.com");
     const [cpf, setCPF] = useState("000.000.000-00");
-    const [password, setPassword] = useState("");
     const [cep, setCep] = useState("16000-201");
     const [endereco, setEndereco] = useState("Rua das palmeiras");
     const [numero, setNumero] = useState("2011");
     const [bairro, setBairro] = useState("Centro");
     const [cidade, setCidade] = useState("Birigui");
 
+    // Estado para o Dropdown
     const [open, setOpen] = useState(false);
     const [gender, setGender] = useState("cisf");
     const [genderItem, setGenderItem] = useState([
@@ -30,314 +50,298 @@ export default function EditPerfil() {
     ]);
 
     return (
-        <ImageBackground
-            source={require("../../../../../assets/images/gradiente.png")}
-            style={{ flex: 1 }}
-            blurRadius={20}
+        <LinearGradient
+            colors={['#eff6ff', '#dbeafe']}
+            style={styles.background}
         >
-            {/* Header Perfil */}
-            <View style={styles.container}>
-                <View style={styles.avatarContainer}>
-                    <Image
-                        source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                        style={styles.foto}
-                    />
-                    <TouchableOpacity
-                        style={styles.editFoto}
-                        onPress={() => console.log("Trocar foto")}
-                    >
-                        <Camera size={18} color="#fff" />
-                        {/* Pode trocar o User por <Camera /> ou <Pencil /> */}
-                    </TouchableOpacity>
-                </View>
-
-                <Text style={styles.nome}>Juliana Alves</Text>
-                <View style={styles.locationContainer}>
-                    <MapPin size={18} color={"black"} />
-                    <Text style={styles.locationText}>Birigui - São Paulo</Text>
-                </View>
-            </View>
-
-
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
             >
-                {/* Nome */}
-                <View style={styles.inputWrapper}>
-                    <User color="#3386BC" size={20} style={styles.icon} />
-                    <TextInput
-                        placeholder="Nome"
-                        style={styles.input}
-                        value={name}
-                        onChangeText={setName}
-                    />
-                </View>
-
-                {/* Data e Telefone lado a lado */}
-                <View style={styles.row}>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <Calendar color="#3386BC" size={20} style={styles.icon} />
-                        <TextInput
-                            placeholder="Data de nascimento"
-                            style={styles.input}
-                            value={birthDate}
-                            onChangeText={setBirthDate}
-                        />
+                <ScrollView
+                    contentContainerStyle={styles.scrollContainer}
+                    nestedScrollEnabled
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Header Perfil */}
+                    <View style={styles.headerContainer}>
+                        <View style={styles.avatarContainer}>
+                            <Image
+                                source={{ uri: "https://i.pravatar.cc/150?img=38" }}
+                                style={styles.foto}
+                            />
+                            <TouchableOpacity
+                                style={styles.editFotoButton}
+                                onPress={() => console.log("Trocar foto")}
+                            >
+                                <Camera size={16} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.nome}>Juliana Alves</Text>
+                        <View style={styles.locationContainer}>
+                            <MapPin size={16} color={"#4b5563"} />
+                            <Text style={styles.locationText}>Birigui - São Paulo</Text>
+                        </View>
                     </View>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <Phone color="#3386BC" size={20} style={styles.icon} />
-                        <TextInput
-                            placeholder="Telefone"
-                            style={styles.input}
-                            value={phone}
-                            onChangeText={setPhone}
+
+                    {/* Formulário */}
+                    <View style={styles.formContainer}>
+                        <View style={styles.inputWrapper}>
+                            <User color="#3386BC" size={20} style={styles.icon} />
+                            <TextInput
+                                placeholder="Nome Completo"
+                                style={styles.input}
+                                value={name}
+                                onChangeText={setName}
+                            />
+                        </View>
+
+                        <View style={styles.row}>
+                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                                <Calendar color="#3386BC" size={20} style={styles.icon} />
+                                <TextInput
+                                    placeholder="Data de nascimento"
+                                    style={styles.input}
+                                    value={birthDate}
+                                    onChangeText={setBirthDate}
+                                />
+                            </View>
+                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                                <Phone color="#3386BC" size={20} style={styles.icon} />
+                                <TextInput
+                                    placeholder="Telefone"
+                                    style={styles.input}
+                                    value={phone}
+                                    onChangeText={setPhone}
+                                    keyboardType="phone-pad"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.inputWrapper}>
+                            <Mail color="#3386BC" size={20} style={styles.icon} />
+                            <TextInput
+                                placeholder="Endereço de e-mail"
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                            />
+                        </View>
+
+                        <View style={styles.inputWrapper}>
+                            <IdCard color="#3386BC" size={20} style={styles.icon} />
+                            <TextInput
+                                placeholder="CPF"
+                                style={styles.input}
+                                value={cpf}
+                                onChangeText={setCPF}
+                                keyboardType="numeric"
+                            />
+                        </View>
+
+                        <DropDownPicker
+                            open={open}
+                            value={gender}
+                            items={genderItem}
+                            setOpen={setOpen}
+                            setValue={setGender}
+                            setItems={setGenderItem}
+                            listMode="SCROLLVIEW"
+                            placeholder="Identidade de gênero"
+                            style={styles.dropdown}
+                            dropDownContainerStyle={styles.dropdownContainer}
+                            textStyle={{ color: "#333" }}
+                            ArrowDownIconComponent={() => <ChevronDown color="#3386BC" size={20} />}
+                            ArrowUpIconComponent={() => <ChevronUp color="#3386BC" size={20} />}
+                            zIndex={3000}
+                            zIndexInverse={1000}
                         />
+
+                        <View style={styles.inputWrapper}>
+                             <MapPin color="#3386BC" size={20} style={styles.icon} />
+                            <TextInput
+                                placeholder="Endereço"
+                                style={styles.input}
+                                value={endereco}
+                                onChangeText={setEndereco}
+                            />
+                        </View>
+
+                        <View style={styles.row}>
+                            <View style={[styles.inputWrapper, { flex: 2 }]}>
+                                <TextInput
+                                    placeholder="Bairro"
+                                    style={styles.input}
+                                    value={bairro}
+                                    onChangeText={setBairro}
+                                />
+                            </View>
+                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                                <TextInput
+                                    placeholder="Nº"
+                                    style={styles.input}
+                                    value={numero}
+                                    onChangeText={setNumero}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.row}>
+                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                                <TextInput
+                                    placeholder="CEP"
+                                    style={styles.input}
+                                    value={cep}
+                                    onChangeText={setCep}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                                <TextInput
+                                    placeholder="Cidade"
+                                    style={styles.input}
+                                    value={cidade}
+                                    onChangeText={setCidade}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.buttonContainer}>
+                            <TouchableOpacity style={[styles.button, styles.saveButton]}>
+                                <Text style={styles.buttonText}>Salvar alterações</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.button, styles.deleteButton]}>
+                                <Text style={[styles.buttonText, styles.deleteButtonText]}>Deletar conta</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-
-                {/* Email */}
-                <View style={styles.inputWrapper}>
-                    <Mail color="#3386BC" size={20} style={styles.icon} />
-                    <TextInput
-                        placeholder="Endereço de e-mail"
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                    />
-                </View>
-
-                {/* CPF */}
-                <View style={styles.inputWrapper}>
-                    <IdCard color="#3386BC" size={20} style={styles.icon} />
-                    <TextInput
-                        placeholder="CPF"
-                        style={styles.input}
-                        value={cpf}
-                        onChangeText={setCPF}
-                    />
-                </View>
-
-                {/* Identidade de gênero */}
-                <DropDownPicker
-                    open={open}
-                    value={gender}
-                    listMode="SCROLLVIEW"
-                    placeholder="Identidade de gênero"
-                    items={genderItem}
-                    setOpen={setOpen}
-                    setValue={setGender}
-                    setItems={setGenderItem}
-                    style={styles.dropdown}
-                    dropDownContainerStyle={styles.dropdownContainer}
-                    textStyle={{ color: "#000000" }}
-                    listItemLabelStyle={{ color: "#000000" }}
-                    ArrowDownIconComponent={() => <ChevronDown color="#3386BC" size={20} />}
-                    ArrowUpIconComponent={() => <ChevronUp color="#3386BC" size={20} />}
-                />
-
-                {/* Endereço */}
-                <View style={styles.inputWrapper}>
-                    <TextInput
-                        placeholder="Endereço"
-                        style={styles.input}
-                        value={endereco}
-                        onChangeText={setEndereco}
-                    />
-                </View>
-
-                {/* Bairro e Número lado a lado */}
-                <View style={styles.row}>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <TextInput
-                            placeholder="Bairro"
-                            style={styles.input}
-                            value={bairro}
-                            onChangeText={setBairro}
-                        />
-                    </View>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <TextInput
-                            placeholder="Nº"
-                            style={styles.input}
-                            value={numero}
-                            onChangeText={setNumero}
-                        />
-                    </View>
-                </View>
-
-                {/* CEP e Cidade lado a lado */}
-                <View style={styles.row}>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <TextInput
-                            placeholder="CEP"
-                            style={styles.input}
-                            value={cep}
-                            onChangeText={setCep}
-                        />
-                    </View>
-                    <View style={[styles.inputWrapper, styles.half]}>
-                        <TextInput
-                            placeholder="Cidade"
-                            style={styles.input}
-                            value={cidade}
-                            onChangeText={setCidade}
-                        />
-                    </View>
-                </View>
-
-                {/* Botões */}
-                <View style={styles.buttonRow}>
-                     <TouchableOpacity style={[styles.button, styles.save]}>
-                        <Text style={styles.buttonText}>Salvar alterações</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.button, styles.delete]}>
-                        <Text style={styles.buttonText}>Deletar conta</Text>
-                    </TouchableOpacity>
-                   
-                </View>
-            </ScrollView>
-            <View style={{height:10}}/>
-        </ImageBackground>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginTop: "15%",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-        margin: "5%",
-        backgroundColor: "#ededed",
-        borderRadius: 20,
+    background: {
+        flex: 1, // <-- 2. CORREÇÃO DE LAYOUT
     },
-    foto: {
-        width: 110,
-        height: 110,
-        borderRadius: 55,
-        borderColor: "white",
-        borderWidth: 2,
-        marginTop: "10%",
-        marginBottom: 12,
+    scrollContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: 40,
+        marginTop:'10%'
+    },
+    headerContainer: {
+        alignItems: "center",
+        paddingVertical: 20,
     },
     avatarContainer: {
         position: "relative",
-        justifyContent: "center",
-        alignItems: "center",
     },
-    editFoto: {
+    foto: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: "#3b82f6",
+    },
+    editFotoButton: {
         position: "absolute",
-        bottom: 10,
+        bottom: 0,
         right: 0,
         backgroundColor: "#3386BC",
         borderRadius: 20,
-        padding: 6,
+        padding: 8,
         borderWidth: 2,
-        borderColor: "#fff", // pra dar aquele contorno bonito
+        borderColor: "#eff6ff",
     },
-
     nome: {
         fontSize: 22,
-        color: "black",
+        color: "#111827",
         fontWeight: "700",
-        marginBottom: 6,
+        marginTop: 12,
+        marginBottom: 4,
     },
     locationContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        marginBottom: "5%",
     },
     locationText: {
-        fontSize: 16,
-        color: "black",
-        fontWeight: "700",
+        fontSize: 15,
+        color: "#4b5563",
     },
-    scrollContent: {
-        alignItems: "center",
+    formContainer: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
         padding: 20,
-backgroundColor:'#ffffff',
-margin:'5%',
-
-
-        alignSelf: 'center',
-        borderRadius: 20
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
     },
     inputWrapper: {
         flexDirection: "row",
         alignItems: "center",
-        borderWidth: 1,
-        borderColor: "transparent",
-        borderRadius: 20,
-        paddingHorizontal: 10,
+        backgroundColor: "#f9fafb",
+        borderRadius: 12,
+        paddingHorizontal: 15,
         height: 50,
-        marginBottom: "5%",
-        backgroundColor: "#ededed",
-        shadowColor: '#000000',
-        shadowRadius: 4,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 4,
-        
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     input: {
         flex: 1,
         fontSize: 16,
         color: "#333",
+        paddingLeft: 10,
     },
     icon: {
-        marginRight: 8,
+        marginRight: 5,
     },
     row: {
         flexDirection: "row",
-        justifyContent: "space-between",
-       gap:15,
-    },
-    half: {
-        width: "48%",
-        
+        gap: 15,
     },
     dropdown: {
-        borderRadius: 20,
-        borderColor: "#DDD",
-        backgroundColor: "#ededed",
-        shadowColor: '#000000',
-        shadowRadius: 4,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 4,
-        marginBottom: "5%",
+        backgroundColor: "#f9fafb",
+        borderColor: '#e5e7eb',
+        borderRadius: 12,
+        marginBottom: 15,
     },
     dropdownContainer: {
-        borderColor: "#DDD",
-        borderRadius: 20,
-        width: '90%',
-        alignSelf: 'center',
+        backgroundColor: "#f9fafb",
+        borderColor: '#e5e7eb',
+        borderRadius: 12,
     },
-    buttonRow: {
-        justifyContent: "space-between",
-        width: "90%",
-        marginTop: '5%',
-       
+    buttonContainer: {
+        marginTop: 20,
     },
     button: {
-         marginBottom:'5%',
-         
-        padding: 15,
-        borderRadius: 20,
+        borderRadius: 12,
+        paddingVertical: 15,
         alignItems: "center",
-        marginHorizontal: 5,
+        marginBottom: 10,
     },
-    delete: {
-        backgroundColor: "#d64a4a",
-    },
-    save: {
+    saveButton: {
         backgroundColor: "#3386BC",
+    },
+    deleteButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: '#ef4444',
     },
     buttonText: {
         color: "#fff",
         fontWeight: "700",
+        fontSize: 16,
+    },
+    deleteButtonText: {
+        color: "#ef4444",
     },
 });

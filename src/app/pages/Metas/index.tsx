@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pencil, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { ImageBackground, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import ProgressBar from '../../../../components/progessBar';
 
@@ -87,10 +88,9 @@ const Metas = () => {
 
 
     return (
-        <ImageBackground
-            source={require('../../../../assets/images/gradiente.png')}
-            style={styles.gradientBackground}
-            blurRadius={20}
+        <LinearGradient
+            colors={['#eff6ff', '#dbeafe']}
+            style={styles.background}
         >
             <View style={styles.mainContainer}>
 
@@ -101,7 +101,7 @@ const Metas = () => {
                     <View style={styles.cardsMeta}>
                         {metas.length === 0 ? (
                             <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: '70%' }}>
-                                <Text style={{ color: '#161616ff', fontWeight: 'bold', fontSize:16 }}>Nenhuma meta registrada</Text>
+                                <Text style={{ color: '#161616ff', fontWeight: 'bold', fontSize: 16 }}>Nenhuma meta registrada</Text>
                             </View>
                         ) : (
                             metas.map((meta) => {
@@ -140,7 +140,7 @@ const Metas = () => {
                     style={styles.newMetaContainer}
                     onPress={() => setModalVisible(true)}
                 >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 35, alignItems: 'center', justifyContent: 'center', position: 'absolute', bottom: '20%', right: '30%' }}>+</Text>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 35, alignItems: 'center', justifyContent: 'center', position: 'absolute', bottom: '20%', right: '35.5%' }}>+</Text>
                 </TouchableOpacity>
 
                 <Modal
@@ -200,14 +200,14 @@ const Metas = () => {
                 </Modal>
 
             </View>
-        </ImageBackground>
+        </LinearGradient>
     );
 };
 
 export default Metas;
 
 const styles = StyleSheet.create({
-    gradientBackground: {
+    background: {
         flex: 1
     },
     mainContainer: {

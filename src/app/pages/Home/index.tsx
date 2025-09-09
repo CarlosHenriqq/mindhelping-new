@@ -1,13 +1,56 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ChartLine } from 'lucide-react-native';
-import React, { useState } from 'react';
-import { Button, Dimensions, Image, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
+// 1. Importa a função do novo serviço de notificação
+import { goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification } from '../../../notificationService';
 
 const width = Dimensions.get('window').width;
+const height = Dimensions.get('window').height;
+
+// --- Dados para os Modais de Dicas ---
+const relaxationTips = [
+    {
+        title: "Que tal tentarmos meditar?",
+        tips: [
+            "Encontre um lugar tranquilo onde não será interrompido.",
+            "Sente-se ou deite-se em uma posição confortável.",
+            "Concentre-se na sua respiração, sentindo o ar entrar e sair.",
+            "Se sua mente divagar, gentilmente traga o foco de volta para a respiração.",
+            "Comece com sessões curtas de 5 a 10 minutos."
+        ]
+    },
+    {
+        title: "Ou conversar com a nossa comunidade?",
+        tips: [
+            "Compartilhar seus sentimentos pode aliviar o peso emocional.",
+            "Ouvir outras pessoas pode te dar novas perspectivas.",
+            "Lembre-se de ser respeitoso e empático com os outros.",
+        ]
+    },
+    {
+        title: "Talvez um som relaxante",
+        tips: [
+            "Experimente ouvir sons da natureza, como chuva ou ondas do mar.",
+            "Músicas instrumentais ou 'lo-fi' são ótimas para focar ou relaxar.",
+            "Use fones de ouvido para uma experiência mais imersiva.",
+            "Existem playlists prontas em várias plataformas de streaming."
+        ]
+    },
+    {
+        title: "Por que não praticar um esporte?",
+        tips: [
+            "A atividade física libera endorfinas, que melhoram o humor.",
+            "Escolha uma atividade que você goste, como caminhar, dançar ou nadar.",
+            "Até mesmo uma caminhada leve de 15 minutos pode fazer a diferença.",
+            "Praticar esportes em grupo pode ser uma ótima forma de socializar."
+        ]
+    }
+];
 
 export default function Home() {
 
@@ -24,39 +67,46 @@ export default function Home() {
     const [inputText, setInputText] = useState('');
     const [selectedFeeling, setSelectedFeeling] = useState();
     const [selectedFeelingIndex, setSelectedFeelingIndex] = useState(true);
-    const [searchProf, setSearchProf] = useState('')
-    const navigation = useNavigation();
+
+    const [isTipsModalVisible, setIsTipsModalVisible] = useState(false);
+    const [modalContent, setModalContent] = useState({ title: '', tips: [] });
+
+    const dadosDaConsulta = {
+    id: 'consulta-alessandra-15-10-2024', // Um ID único para esta consulta
+    professionalName: 'Dra. Alessandra',
+    date: new Date('2025-09-09T22:50:00') // É crucial que seja um objeto Date
+};
+
+    // 2. O useEffect agora está muito mais limpo e apenas chama a função
+    useEffect(() => {
+        scheduleDailyReminderNotification();
+        goalsWeeklyNotification();
+        scheduleWeeklyReportNotification();
+        scheduleAppointmentReminder(dadosDaConsulta);
+
+
+    }, []); // O array vazio [] garante que esta lógica rode apenas uma vez
 
     useFocusEffect(
         React.useCallback(() => {
             const loadFeeling = async () => {
                 const storedFeeling = await AsyncStorage.getItem('@selectedFeeling');
                 setSelectedFeeling(storedFeeling || null);
-
-
             };
-
-
             loadFeeling();
-
-            ;
         }, [])
     );
 
     const registerFeelingWithTime = async (feeling) => {
-        const currentTime = new Date().toISOString().split('T')[1].substring(0, 5); // Formato HH:MM
-        const today = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
-
+        const currentTime = new Date().toISOString().split('T')[1].substring(0, 5);
+        const today = new Date().toISOString().split('T')[0];
         try {
             const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
             const dailyFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-
             if (!Array.isArray(dailyFeelings[today])) {
                 dailyFeelings[today] = [];
             }
-
             dailyFeelings[today].push({ feeling, time: currentTime });
-
             await AsyncStorage.setItem('@dailyFeelings', JSON.stringify(dailyFeelings));
             console.log(`Sentimento registrado às ${currentTime}: ${feeling}`);
         } catch (e) {
@@ -70,91 +120,145 @@ export default function Home() {
             try {
                 const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
                 const dailyFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-
                 const todaysEntries = dailyFeelings[today];
 
-                // Adiciona a nota ao último sentimento registrado hoje
                 if (Array.isArray(todaysEntries) && todaysEntries.length > 0) {
                     const lastEntryIndex = todaysEntries.length - 1;
-                    todaysEntries[lastEntryIndex].note = inputText; // Adiciona a propriedade 'note'
-
-                    // Salva o objeto inteiro de volta no AsyncStorage
+                    todaysEntries[lastEntryIndex].note = inputText;
                     await AsyncStorage.setItem('@dailyFeelings', JSON.stringify(dailyFeelings));
                     console.log(`Nota adicionada: "${inputText}"`);
-
                 }
-
-                // Limpa e fecha o modal
                 setInputText('');
                 setModalSelect(false);
-
             } catch (e) {
                 console.log("Erro ao salvar a nota do sentimento: ", e);
             }
         } else {
-            // Se o usuário não digitar nada, apenas feche o modal
             setModalSelect(false);
         }
     };
 
-
+    const openTipsModal = (tipData) => {
+        setModalContent(tipData);
+        setIsTipsModalVisible(true);
+    };
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
-            <ScrollView style={styles.screen}>
-
-                <View style={styles.feeling}>
-                    <View style={styles.containerUser}>
-                        <View style={styles.textContainer}>
-                            <Text style={styles.userText}>Oi Carlos,</Text>
-                            <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
+        <View style={{ flex: 1 }}>
+            <LinearGradient
+                colors={['#eff6ff', '#dbeafe']}
+                style={styles.background}
+            >
+                <KeyboardAvoidingView style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
+                    <ScrollView style={styles.screen}>
+                        <View style={styles.feeling}>
+                            <View style={styles.containerUser}>
+                                <View style={styles.textContainer}>
+                                    <Text style={styles.userText}>Oi Carlos,</Text>
+                                    <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => {
+                                    router.replace('/pages/Perfil')
+                                }}>
+                                    <Image
+                                        source={{ uri: "https://i.pravatar.cc/150?img=38" }}
+                                        style={styles.foto}
+                                    />
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                        <TouchableOpacity onPress={() => {
-                            router.replace('/pages/Perfil')
-                        }}>
-                            <Image
-                                source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                                style={styles.foto}
-                            />
 
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                        <Carousel
+                            loop
+                            autoPlay
+                            autoPlayInterval={3000}
+                            width={width}
+                            height={200}
+                            data={feelings}
+                            scrollAnimationDuration={800}
+                            onSnapToItem={(index) => setSelectedFeelingIndex(index)}
+                            withPagination={false}
+                            renderItem={({ item }) => (
+                                <View style={styles.slide}>
+                                    <TouchableOpacity onPress={() => {
+                                        registerFeelingWithTime(item.text);
+                                        setModalSelect(true);
+                                    }}>
+                                        <Image source={item.image} style={styles.img} />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        />
 
+                        <View style={styles.nextConsulta}>
+                            <Text style={styles.textConsulta}>Sua próxima consulta: </Text>
+                            <View style={styles.cardConsulta}>
+                                <Text style={styles.nameProf}>Dra. Alessandra</Text>
+                                <Text>Psicóloga</Text>
+                                <View style={styles.dadosPsi}>
+                                    <TouchableOpacity></TouchableOpacity>
+                                    <Text style={styles.contatoProf}>alessandra.psi@gmail.com</Text>
+                                </View>
+                                <View style={styles.telePsi}>
+                                    <TouchableOpacity></TouchableOpacity>
+                                    <Text style={styles.contatoProf}>18 99756-2102</Text>
+                                </View>
+                                <View style={styles.dadoConsulta}>
+                                    <Text style={styles.dateConsulta}>Data</Text>
+                                    <Text style={styles.dateConsulta}>Horário</Text>
+                                </View>
+                                <View style={styles.dadosConsulta}>
+                                    <Text>15/10/2024</Text>
+                                    <Text>16:00h</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.dateConsulta}>Endereço</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.dadosLocConsulta}>Lorem ipsum dolor sit quaerat minus, Birigui - SP </Text>
+                                    <View style={styles.maps}>
+                                        <TouchableOpacity></TouchableOpacity>
+                                        <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </View>
 
-                <Carousel
-                    loop
-                    autoPlay
-                    autoPlayInterval={3000}
-                    width={width}
-                    height={200}
-                    data={feelings}
-                    scrollAnimationDuration={800}
-                    onSnapToItem={(index) => setSelectedFeelingIndex(index)}
-                    renderItem={({ item }) => (
-                        <View style={styles.slide}>
-                            <TouchableOpacity onPress={() => {
-                                registerFeelingWithTime(item.text);
-
-                                setModalSelect(true);
-                            }}>
-                                <Image source={item.image} style={styles.img} />
+                        <View style={{ marginLeft: '6%', marginTop: '6%' }}>
+                            <Text style={{ fontFamily: 'Nunito', fontSize: 16 }}>Agende sua próxima consulta:</Text>
+                        </View>
+                        <View >
+                            <TouchableOpacity onPress={() => router.replace('/pages/Agendamento')} style={styles.searchProf}>
+                                <Text>Procurar Profissionais</Text>
                             </TouchableOpacity>
                         </View>
-                    )}
-                />
 
-                <Modal
-                    animationType="slide"
-                    transparent={true}
-                    visible={modalSelected}
-                    onRequestClose={() => setModalSelect(false)}
-                >
+                        <View style={styles.containerRelax}>
+                            <Text style={styles.textRelax}>Que tal relaxar?</Text>
+                            <View style={styles.grid}>
+                                {relaxationTips.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={styles.card}
+                                        onPress={() => openTipsModal(item)}
+                                    >
+                                        <Text style={styles.cardText}>{item.title}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+
+                {modalSelected && (
                     <View style={styles.modalContainer}>
+                        <TouchableWithoutFeedback onPress={() => setModalSelect(false)}>
+                            <View style={styles.modalOverlay} />
+                        </TouchableWithoutFeedback>
                         <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Porquê você está se sentindo assim?</Text>
+                            <Text style={styles.modalTitle}>Por que você está se sentindo assim?</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Digite aqui"
@@ -169,91 +273,37 @@ export default function Home() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </Modal>
-                <View style={styles.nextConsulta}>
-                    <Text style={styles.textConsulta}>Sua próxima consulta: </Text>
-                    <View style={styles.cardConsulta}>
-                        <Text style={styles.nameProf}>Dra. Alessandra</Text>
-                        <Text>Psicóloga</Text>
-                        <View style={styles.dadosPsi}>
-                            <TouchableOpacity>
+                )}
 
+                {isTipsModalVisible && (
+                    <View style={styles.modalContainer}>
+                        <TouchableWithoutFeedback onPress={() => setIsTipsModalVisible(false)}>
+                            <View style={styles.modalOverlay} />
+                        </TouchableWithoutFeedback>
+                        <View style={styles.tipsModalContent}>
+                            <Text style={styles.modalTitle}>{modalContent.title}</Text>
+                            <ScrollView style={{ width: '100%', maxHeight: height * 0.4 }}>
+                                {modalContent.tips.map((tip, index) => (
+                                    <Text key={index} style={styles.tipText}>• {tip}</Text>
+                                ))}
+                            </ScrollView>
+                            <TouchableOpacity
+                                style={styles.modalButton}
+                                onPress={() => setIsTipsModalVisible(false)}
+                            >
+                                <Text style={styles.modalButtonText}>Fechar</Text>
                             </TouchableOpacity>
-                            <Text style={styles.contatoProf}>alessandra.psi@gmail.com</Text>
-                        </View>
-                        <View style={styles.telePsi}>
-                            <TouchableOpacity>
-
-                            </TouchableOpacity>
-                            <Text style={styles.contatoProf}>18 99756-2102</Text>
-                        </View>
-                        <View style={styles.dadoConsulta}>
-                            <Text style={styles.dateConsulta}>Data</Text>
-                            <Text style={styles.dateConsulta}>Horário</Text>
-                        </View>
-                        <View style={styles.dadosConsulta}>
-                            <Text>15/10/2024</Text>
-                            <Text>16:00h</Text>
-                        </View>
-                        <View>
-                            <Text style={styles.dateConsulta}>Endereço</Text>
-                        </View>
-                        <View>
-                            <Text style={styles.dadosLocConsulta}>Lorem ipsum dolor sit quaerat minus, Birigui - SP </Text>
-                            <View style={styles.maps}>
-                                <TouchableOpacity>
-
-                                </TouchableOpacity>
-                                <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
-                            </View>
                         </View>
                     </View>
-
-                </View>
-                <View style={{ marginLeft: '6%', marginTop: '6%' }}>
-                    <Text style={{ fontFamily: 'Nunito', fontSize: 16 }}>Agende sua próxima consulta:</Text>
-                </View>
-                <View style={styles.searchProf}>
-                    <Button title='Procurar Profissionais' onPress={()=> router.replace('/pages/Agendamento')} color={'black'}/>
-
-                </View>
-                <View style={{ marginLeft: '6.5%', marginTop: '5%', flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <ChartLine size={24} />
-                    <TouchableOpacity onPress={() => router.replace('/pages/Charts')}>
-                        <Text style={{ fontSize: 18 }}>Acessar meus relatórios</Text>
-                    </TouchableOpacity>
-                </View>
-
-                <View style={styles.containerRelax}>
-                    <Text style={styles.textRelax}>Que tal relaxar?</Text>
-                    <View style={styles.grid}>
-                        <TouchableOpacity style={styles.card}>
-                            <Text style={styles.cardText}>Que tal tentarmos meditar?</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.card}>
-                            <Text style={styles.cardText}>Ou conversar com a nossa comunidade?</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.card}>
-                            <Text style={styles.cardText}>Talvez um som relaxante</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.card}>
-                            <Text style={styles.cardText}>Por quê não praticar um esporte?</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                </View>
-
-            </ScrollView>
-        </KeyboardAvoidingView>
+                )}
+            </LinearGradient>
+        </View>
     );
 };
 
-
 const styles = StyleSheet.create({
-    screen: {
-
-        backgroundColor: '#ffffff',
-
+    background: {
+        flex: 1
     },
     feeling: {
         marginVertical: 20,
@@ -267,7 +317,7 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         flex: 1,
-        top: '50%'// Garante que o texto ocupe o espaço restante
+        top: '50%'
     },
     userText: {
         fontSize: 18,
@@ -304,15 +354,12 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         borderRadius: 20,
     },
-
     slide: {
-
         width: '100%',
         height: 200,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
-
     },
     nextConsulta: {
         top: 20,
@@ -320,7 +367,7 @@ const styles = StyleSheet.create({
     textConsulta: {
         fontSize: 16,
         marginBottom: -5,
-        fontFamily: 'Mukta-Bold', // Fonte personalizada
+        fontFamily: 'Mukta-Bold',
         textAlign: 'left',
         paddingLeft: 22,
     },
@@ -338,14 +385,9 @@ const styles = StyleSheet.create({
     nameProf: {
         fontSize: 18,
         fontWeight: 'bold',
-
     },
     contatoProf: {
         fontWeight: 'bold',
-    },
-    emailImg: {
-        width: 20,
-        height: 20,
     },
     dadosPsi: {
         flexDirection: 'row',
@@ -379,32 +421,29 @@ const styles = StyleSheet.create({
     maps: {
         flexDirection: 'row',
     },
-    mapsImg: {
-        width: 20,
-        height: 20,
-    },
     containerRelax: {
         margin: 15,
     },
     textRelax: {
         fontSize: 16,
         marginBottom: 5,
-        fontFamily: 'Mukta-Bold', // Fonte personalizada
+        fontFamily: 'Mukta-Bold',
         textAlign: 'left',
         paddingLeft: 10,
-
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-around', // Para espaçar os cards
+        justifyContent: 'space-around',
     },
     card: {
-        backgroundColor: '#3386BC',
-        width: '45%', // Cada card vai ocupar 45% da largura
+        backgroundColor: '#7296c5ff',
+        width: '45%',
         padding: 15,
         borderRadius: 20,
         marginVertical: 10,
+        justifyContent: 'center',
+        minHeight: 100,
     },
     cardText: {
         color: 'white',
@@ -412,47 +451,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
         justifyContent: 'center',
-        paddingTop: 10,
-        paddingBottom: 10
-    },
-    relaxImg: {
-        width: '80%',
-        height: undefined,
-        aspectRatio: 1,
-        left: 10,
-        resizeMode: 'contain'
-    },
-    continueButton: {
-        backgroundColor: '#A7BED3',
-        padding: 15,
-        borderRadius: 20,
-        marginHorizontal: 20,
-        marginTop: 20,
-        alignItems: 'center',
-        borderWidth: 1
-    },
-    continueText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold'
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fundo escurecido
-    },
-    modalContent: {
-        width: '80%',
-        padding: 20,
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        alignItems: 'center',
     },
     modalTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 15,
+        textAlign: 'center',
     },
     input: {
         width: '100%',
@@ -464,10 +468,11 @@ const styles = StyleSheet.create({
     },
     modalButton: {
         backgroundColor: '#2980B9',
-        padding: 10,
+        padding: 12,
         borderRadius: 20,
         width: '100%',
         alignItems: 'center',
+        marginTop: 10,
     },
     modalButtonText: {
         color: '#fff',
@@ -476,21 +481,71 @@ const styles = StyleSheet.create({
     },
     searchProf: {
         marginTop: '5%',
-        borderWidth: 1,
-        borderColor: 'black',
+        borderWidth: 0.5,
+        borderColor: '#000000',
         width: '90%',
+        padding: 10,
+        backgroundColor: '#ffffff',
         borderRadius: 20,
         alignSelf: 'center',
-        justifyContent:"center",
-        paddingInline: 15,
-        padding: 0,
-        
-        flexDirection: 'row'
+        justifyContent: "center",
+        flexDirection: 'row',
+        shadowColor: '#000000',
+        shadowRadius: 10,
+        shadowOpacity: 0.25,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 5,
     },
-    icon: {
+    tipText: {
+        fontSize: 15,
+        color: '#333',
+        marginBottom: 10,
+        lineHeight: 22,
+        width: '100%',
+    },
+    modalContainer: {
         position: 'absolute',
-        right: -35,
-        top: -2,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        width: '80%',
+        padding: 20,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        zIndex: 10,
+    },
+    tipsModalContent: {
+        width: '90%',
+        padding: 20,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        alignItems: 'center',
+        maxHeight: '80%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        zIndex: 10,
     },
 });
 

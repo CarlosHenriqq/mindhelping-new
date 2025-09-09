@@ -31,9 +31,12 @@
       "typedRoutes": true
     },
     "permissions": [
-        "android.permission.CALL_PHONE"   
-      ]
-    
+      "android.permission.CALL_PHONE"
+    ],
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#2980B9",
+      "androidMode": "default"
+    }
   }
-  
 }

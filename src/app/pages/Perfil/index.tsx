@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LinearGradient } from "expo-linear-gradient"; // <-- 1. CORREÇÃO CRÍTICA AQUI
 import { router, useFocusEffect } from "expo-router";
 import {
     Bell,
@@ -12,11 +13,11 @@ import {
 import React, { useState } from "react";
 import {
     Image,
-    ImageBackground,
+    ScrollView, // <-- 2. ADICIONADO SCROLLVIEW
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 
 export default function Perfil() {
@@ -25,24 +26,21 @@ export default function Perfil() {
     async function loadLastFeeling() {
         try {
             const data = await AsyncStorage.getItem("@dailyFeelings");
-
             if (!data) return;
 
             const feelings = JSON.parse(data);
-            const dates = Object.keys(feelings).sort(); // ordena as datas
-            const lastDate = dates[dates.length - 1]; // pega a última data
-            const lastEntry = feelings[lastDate];
+            const dates = Object.keys(feelings).sort();
+            if (dates.length === 0) return;
 
-            let last;
-            if (Array.isArray(lastEntry)) {
-                last = lastEntry[lastEntry.length - 1]?.feeling || "Nenhum";
-            } else if (typeof lastEntry === "string") {
-                last = lastEntry;
+            const lastDate = dates[dates.length - 1];
+            const lastDayEntries = feelings[lastDate];
+
+            if (Array.isArray(lastDayEntries) && lastDayEntries.length > 0) {
+                const lastEntry = lastDayEntries[lastDayEntries.length - 1];
+                setLastFeeling(lastEntry?.feeling || "Nenhum");
             } else {
-                last = "Nenhum";
+                setLastFeeling("Nenhum");
             }
-
-            setLastFeeling(last);
         } catch (error) {
             console.log("Erro ao carregar último sentimento:", error);
         }
@@ -55,83 +53,73 @@ export default function Perfil() {
     );
 
     return (
-        <ImageBackground
-            source={require("../../../../assets/images/gradiente.png")}
+        <LinearGradient
+            colors={['#eff6ff', '#dbeafe']}
             style={styles.background}
-            blurRadius={20}
         >
-            {/* Botão do troféu */}
-            <TouchableOpacity
-                style={styles.trophyButton}
-                onPress={() => router.replace("/pages/Metas")}
-            >
-                <TrophyIcon color={"black"} size={20} />
-                <Text style={{ fontSize: 14 }}>Metas</Text>
-            </TouchableOpacity>
-            {/* Botão do logout */}
-            <TouchableOpacity style={styles.logout}>
-                <LogOut size={20} color={"red"} />
-                <Text style={styles.logoutText}>Sair</Text>
-            </TouchableOpacity>
+            <ScrollView contentContainerStyle={styles.scrollContainer}>
+                {/* CARD PRINCIPAL DO PERFIL */}
+                <View style={styles.profileCard}>
+                    <TouchableOpacity
+                        style={styles.trophyButton}
+                        onPress={() => router.replace("/pages/Metas")}
+                    >
+                        <TrophyIcon color={"#333"} size={20} />
+                        <Text style={styles.topButtonText}>Metas</Text>
+                    </TouchableOpacity>
 
-            {/* Perfil */}
-            <View style={styles.container}>
-                <Image
-                    source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                    style={styles.foto}
-                />
+                    <TouchableOpacity style={styles.logoutButton}>
+                        <LogOut size={20} color={"#ef4444"} />
+                        <Text style={styles.logoutText}>Sair</Text>
+                    </TouchableOpacity>
 
-                <Text style={styles.nome}>Juliana Alves</Text>
-
-                <View style={styles.locationContainer}>
-                    <MapPin size={18} color={"black"} />
-                    <Text style={styles.locationText}>Birigui-SP</Text>
-                </View>
-
-                <TouchableOpacity style={styles.editButton} onPress={()=>router.replace('/pages/Perfil/editPerfil')}>
-                    <Text style={styles.editButtonText}>Editar Perfil</Text>
-                </TouchableOpacity>
-                {/* Cards */}
-                <View style={styles.cardsContainer}>
-                    <View style={styles.card}>
-                        <Text style={styles.cardLabel}>Metas concluídas:</Text>
-                        <Text style={styles.cardValue}>2</Text>
+                    <Image
+                        source={{ uri: "https://i.pravatar.cc/150?img=38" }}
+                        style={styles.foto}
+                    />
+                    <Text style={styles.nome}>Juliana Alves</Text>
+                    <View style={styles.locationContainer}>
+                        <MapPin size={16} color={"#555"} />
+                        <Text style={styles.locationText}>Birigui-SP</Text>
                     </View>
+                    <TouchableOpacity style={styles.editButton} onPress={() => router.replace('/pages/Perfil/editPerfil')}>
+                        <Text style={styles.editButtonText}>Editar Perfil</Text>
+                    </TouchableOpacity>
 
-                    <View style={styles.card}>
-                        <Text style={styles.cardLabel}>Último humor:</Text>
-                        <Text style={styles.cardValue}>{lastFeeling || "Nenhum"}</Text>
+                    <View style={styles.cardsContainer}>
+                        <View style={styles.card}>
+                            <Text style={styles.cardLabel}>Metas concluídas</Text>
+                            <Text style={styles.cardValue}>2</Text>
+                        </View>
+                        <View style={styles.card}>
+                            <Text style={styles.cardLabel}>Último humor</Text>
+                            <Text style={styles.cardValue}>{lastFeeling || "Nenhum"}</Text>
+                        </View>
                     </View>
                 </View>
-            </View>
 
-            {/* Configurações */}
-            <View style={styles.containerConfig}>
-                <Text style={styles.textConfig}>Configurações</Text>
+                {/* SEÇÃO DE CONFIGURAÇÕES */}
+                <View style={styles.settingsContainer}>
+                    <TouchableOpacity style={styles.settingsItem}>
+                        <Cog size={20} color={"#333"} />
+                        <Text style={styles.settingsItemText}>Privacidade e segurança</Text>
+                        <ChevronRight size={20} color={"#999"} />
+                    </TouchableOpacity>
 
-                <TouchableOpacity style={styles.infosConfig}>
-                    <Cog size={18} color={"black"} />
-                    <Text style={styles.infosConfigText}>Privacidade e segurança</Text>
-                    <ChevronRight size={18} color={"black"} style={styles.chevron} />
-                </TouchableOpacity>
+                    <TouchableOpacity style={styles.settingsItem}>
+                        <Bell size={20} color={"#333"} />
+                        <Text style={styles.settingsItemText}>Notificações</Text>
+                        <ChevronRight size={20} color={"#999"} />
+                    </TouchableOpacity>
 
-                <TouchableOpacity style={styles.infosConfig}>
-                    <Bell size={18} color={"black"} />
-                    <Text style={styles.infosConfigText}>Notificações</Text>
-                    <ChevronRight size={18} color={"black"} style={styles.chevron} />
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.infosConfig}>
-                    <CircleQuestionMark size={18} color={"black"} />
-                    <Text style={styles.infosConfigText}>FAQ</Text>
-                    <ChevronRight size={18} color={"black"} style={styles.chevron} />
-                </TouchableOpacity>
-
-
-
-            </View>
-
-        </ImageBackground>
+                    <TouchableOpacity style={styles.settingsItem}>
+                        <CircleQuestionMark size={20} color={"#333"} />
+                        <Text style={styles.settingsItemText}>FAQ</Text>
+                        <ChevronRight size={20} color={"#999"} />
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </LinearGradient>
     );
 }
 
@@ -139,62 +127,88 @@ const styles = StyleSheet.create({
     background: {
         flex: 1,
     },
-    container: {
-        marginTop: "15%",
-        alignItems: "center",
-        justifyContent: "center",
+    scrollContainer: {
         padding: 20,
-        margin: '5%',
-        backgroundColor: '#ededed',
-        borderRadius: 20
+    },
+    profileCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        marginTop: 40, // Espaço para o topo da tela
+        marginBottom: 20,
     },
     trophyButton: {
         position: "absolute",
-        
-        gap:5,
-        top: 80,
-        right: 35,
-        alignItems: "center",
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        top: 15,
+        right: 15,
         zIndex: 1,
+        backgroundColor: '#f0f0f0',
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+        borderRadius: 15,
+    },
+    topButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333'
+    },
+    logoutButton: {
+        position: "absolute",
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        top: 15,
+        left: 15,
+        zIndex: 1,
+    },
+    logoutText: {
+        fontSize: 14,
+        fontWeight: "bold",
+        fontFamily: "Nunito",
+        color: "#ef4444",
     },
     foto: {
         width: 110,
         height: 110,
         borderRadius: 55,
-        borderColor: "white",
-        borderWidth: 2,
-        marginTop:'10%',
+        borderColor: "#ededed",
+        borderWidth: 3,
         marginBottom: 12,
+        marginTop: 20, // Espaço para os botões de cima
     },
     nome: {
         fontSize: 22,
-        color: "black",
+        color: "#111827",
         fontFamily: "Nunito",
         fontWeight: "700",
-        marginBottom: 6,
+        marginBottom: 4,
     },
     locationContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
-        marginBottom: "5%",
+        marginBottom: 15,
     },
     locationText: {
-        fontSize: 16,
-        color: "black",
+        fontSize: 15,
+        color: "#4b5563",
         fontFamily: "Nunito",
-        fontWeight: "700",
     },
     editButton: {
         borderRadius: 20,
         backgroundColor: "#2980B9",
         paddingVertical: 10,
-        paddingHorizontal: 20,
-        shadowColor: '#000000',
-        shadowRadius: 10,
-        shadowOpacity: 0.25,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
+        paddingHorizontal: 25,
+        marginBottom: 20,
     },
     editButtonText: {
         textAlign: "center",
@@ -202,82 +216,62 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "bold",
     },
-    containerConfig: {
-        borderRadius: 20,
-        margin: '5%',
-        marginTop: "5%",
-        paddingHorizontal: "5%",
-        padding: 10,
-        flex: 1,
-        backgroundColor:'#ededed'
-    },
-    textConfig: {
-        marginTop: '5%',
-        fontSize: 22,
-        fontFamily: "Nunito",
-        fontWeight: "bold",
-    },
-    infosConfig: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: "5%",
-        alignItems: "center",
-        
-    },
-    infosConfigText: {
-        flex: 1,
-        marginLeft: 10,
-        fontSize: 20,
-        fontWeight: "bold",
-        fontFamily: "Nunito",
-    },
-    chevron: {
-        marginLeft: "auto",
-    },
     cardsContainer: {
         flexDirection: "row",
-        justifyContent: "space-evenly",
-        marginTop: "5%",
-        paddingHorizontal: 20,
+        justifyContent: "space-around",
+        width: '100%',
         gap: 15
     },
     card: {
-        width: 120,
-        height: 60,
-        backgroundColor: "#f0f0f0f0",
-
-        borderRadius: 20,
+        flex: 1,
+        height: 70,
+        backgroundColor: "#f9fafb",
+        borderRadius: 15,
         alignItems: "center",
         justifyContent: "center",
-        shadowColor: '#000000',
-        shadowRadius: 10,
-        shadowOpacity: 0.25,
+        padding: 5,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
         elevation: 5,
     },
     cardLabel: {
         fontSize: 12,
-        color: "#333",
+        color: "#6b7280",
+        textAlign: 'center',
     },
     cardValue: {
         fontSize: 16,
         fontWeight: "bold",
-        color: "#000",
+        color: "#1f2937",
+        textTransform: 'capitalize'
     },
-    logout: {
-        position: "absolute",
-        flexDirection:'row',
-        gap:5,
-        top: 80,
-        left: 35,
+    settingsContainer: {
+        width: '100%',
+    },
+    settingsItem: {
+        flexDirection: "row",
         alignItems: "center",
-        zIndex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 15,
+        padding: 15,
+        marginBottom: 10,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+       
     },
-    logoutText: {
-        fontSize: 14,
-        fontWeight: "bold",
+    settingsItemText: {
+        flex: 1,
+        marginLeft: 15,
+        fontSize: 16,
+        fontWeight: "600",
         fontFamily: "Nunito",
-        color: "red", // já aplica direto aqui
+        color: '#374151'
     },
-
 });

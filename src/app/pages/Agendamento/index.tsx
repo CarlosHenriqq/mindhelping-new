@@ -3,7 +3,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Search } from "lucide-react-native";
 import React, { useState } from "react";
 import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-
+import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
   export interface Professional {
 
   name: string;
@@ -27,7 +27,7 @@ import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, Touchabl
     async function buscarProfissional() {
       const prof = nameProf
       try {
-        const response = await axios.get('http://10.11.185.214:3333/professionals', {
+        const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.PROFESSIONALS}`, {
           params: {
             search: prof
           }
@@ -94,7 +94,7 @@ import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, Touchabl
                     <Text style={styles.info}>{`${item.address}, ${item.neighborhood}, ${item.city} - ${item.uf}` }</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleAgendar(item.id)}>
-                    <Text style={{ fontFamily: 'Nunito', textDecorationLine: 'underline', fontWeight: '700', marginLeft:'5%', marginBottom:'80%'}}>Agendar</Text>
+                    <Text style={{ fontFamily: 'Nunito', textDecorationLine: 'underline', fontWeight: '700', marginLeft:'5%', marginBottom:'10%'}}>Agendar</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -125,7 +125,7 @@ import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, Touchabl
       width: 60,
       height: 60,
       borderRadius: 30,
-      marginRight: 12,
+      
     },
     nome: {
       fontSize: 18,
@@ -149,4 +149,7 @@ import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, Touchabl
           flexDirection: 'row',
           marginBottom:'5%'
       },
+      icon:{
+        top:'25%'
+      }
   });

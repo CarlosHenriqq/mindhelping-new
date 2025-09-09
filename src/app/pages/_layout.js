@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { HomeIcon, NotebookTabs, Phone } from 'lucide-react-native';
+import { ChartColumn, HomeIcon, NotebookTabs, Phone } from 'lucide-react-native';
 import { Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -49,6 +49,15 @@ export default function TabLayout() {
           ),
         }}
       />
+       <Tabs.Screen
+        name="Charts/index"
+        options={{
+          title: 'Relatórios',
+          tabBarIcon: ({ color }) => (
+            <ChartColumn name="chart" color={color} size={25}/>
+          ),
+        }}
+      />
       <Tabs.Screen
         name="CVV/index"
         options={{
@@ -83,10 +92,7 @@ export default function TabLayout() {
         name="Metas/index" // ou o nome do seu arquivo
         options={{ href: null }} 
       />
-       <Tabs.Screen 
-        name="Charts/index" // ou o nome do seu arquivo
-        options={{ href: null }} 
-      />
+      
       <Tabs.Screen 
         name="Perfil/editPerfil/index" // ou o nome do seu arquivo
         options={{ href: null }} 

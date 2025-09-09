@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import React, { useMemo, useState } from "react"; // Importe o useMemo
-import { ImageBackground, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import FeelingsChart from "../../../../components/feelingCharts"; // Seu componente importado
 
@@ -111,11 +112,10 @@ const Analystic = () => {
 
     return (
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} overScrollMode="never">
-            <ImageBackground
-                source={require('../../../../assets/images/gradiente.png')}
-                style={styles.gradientBackground}
-                blurRadius={20}
-            >
+             <LinearGradient
+                        colors={['#eff6ff', '#dbeafe']}
+                        style={styles.background}
+                    >
                 <View style={styles.Seta}>
                     <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.botaoVoltar}>
                         <ChevronLeft color="black" />
@@ -183,7 +183,7 @@ const Analystic = () => {
                 <View style={{height:20}}/>
                 
 
-            </ImageBackground>
+            </LinearGradient>
         </ScrollView >
     );
 };
@@ -192,7 +192,7 @@ export default Analystic;
 
 
 const styles = StyleSheet.create({
-    gradientBackground: {
+    background: {
         flex: 1
     },
     container: {

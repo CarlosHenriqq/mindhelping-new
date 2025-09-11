@@ -100,19 +100,19 @@ export default function Perfil() {
 
                 {/* SEÇÃO DE CONFIGURAÇÕES */}
                 <View style={styles.settingsContainer}>
-                    <TouchableOpacity style={styles.settingsItem}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/Privacidade')}>
                         <Cog size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>Privacidade e segurança</Text>
                         <ChevronRight size={20} color={"#999"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingsItem}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/Notificacoes')}>
                         <Bell size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>Notificações</Text>
                         <ChevronRight size={20} color={"#999"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingsItem}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/FAQ')}>
                         <CircleQuestionMark size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>FAQ</Text>
                         <ChevronRight size={20} color={"#999"} />

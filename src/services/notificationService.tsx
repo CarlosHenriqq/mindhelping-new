@@ -4,7 +4,7 @@ import { Alert, Platform } from 'react-native';
 // Configura como o app se comporta ao receber uma notificação com o app aberto
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
     }),

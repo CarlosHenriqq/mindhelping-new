@@ -1,194 +1,137 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import React, { useMemo, useState } from "react"; // Importe o useMemo
+import React, { useState } from "react";
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
-import FeelingsChart from "../../../../components/feelingCharts"; // Seu componente importado
+import FeelingsChart from "../../../../components/feelingCharts";
+import { countFeelingPDay } from '../../../services/database';
 
 const Analystic = () => {
-    const navigation = useNavigation();
-    const [dailyFeelings, setDailyFeelings] = useState({});
-    const [selectedDay, setSelectedDay] = useState(null);
-    const [modalVisible, setModalVisible] = useState(false);
-    const [selectedFeeling, setSelectedFeeling] = useState('');
+  const navigation = useNavigation();
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedFeeling, setSelectedFeeling] = useState('');
+  const [feelingDataForChart, setFeelingDataForChart] = useState([]);
+  const [maxValue, setMaxValue] = useState(1);
+  const [visibleDate, setVisibleDate] = useState(new Date());
 
-    // ✅ 1. NOVO ESTADO PARA CONTROLAR O MÊS VISÍVEL
-    const [visibleDate, setVisibleDate] = useState(new Date());
+  const feelingColors = {
+    FELIZ: '#edd892',
+    TRISTE: '#6f9ceb',
+    RAIVA: '#ef6865',
+    ANSIOSO: '#f1bb87',
+    TEDIO: '#918ef4',
+    NEUTRO: '#A9A9A9'
+  };
 
-    const feelingColors = {
-        FELIZ: '#edd892',
-        TRISTE: '#6f9ceb',
-        RAIVA: '#ef6865',
-        ANSIOSO: '#f1bb87',
-        TEDIO: '#918ef4',
-        NEUTRO: '#A9A9A9'
-    };
+  const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
 
-    const meses = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchFeelingsFromDB = async () => {
+        try {
+          const result = await countFeelingPDay();
 
-    useFocusEffect(
-        React.useCallback(() => {
-            const getDailyFeelings = async () => {
-                try {
-                    const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
-                    const parsedFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-                    setDailyFeelings(parsedFeelings);
-                } catch (e) {
-                    console.log("Erro ao ler os sentimentos diários: ", e);
-                }
-            };
-            getDailyFeelings();
-        }, [])
-    );
+          const chartData = result.map(item => ({
+            label: item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1).toLowerCase(),
+            value: item.total,
+            color: feelingColors[item.feeling.toUpperCase()] || '#A9A9AA'
+          }));
 
-    useFocusEffect(
-        React.useCallback(() => {
-            StatusBar.setBackgroundColor('#A3D8F4');
-        }, [])
-    );
-
-    const handleDayPress = (day) => {
-        setSelectedDay(day.day);
-        const feelingsForDay = dailyFeelings[day.dateString];
-
-        let feelingText = 'Nenhum sentimento registrado';
-        if (Array.isArray(feelingsForDay) && feelingsForDay.length > 0) {
-            feelingText = feelingsForDay.map(entry => {
-                const formattedFeeling = entry.feeling.charAt(0).toUpperCase() + entry.feeling.slice(1).toLowerCase();
-                const noteText = entry.note ? `\n  - Nota: ${entry.note}` : '';
-                return `${formattedFeeling} às ${entry.time}${noteText}`;
-            }).join('\n\n');
+          const total = chartData.reduce((sum, item) => sum + item.value, 0);
+          setFeelingDataForChart(chartData);
+          setMaxValue(total > 0 ? total : 1);
+        } catch (error) {
+          console.error("Erro ao carregar dados do gráfico:", error);
         }
+      };
 
-        setSelectedFeeling(feelingText);
-        setModalVisible(true);
-    };
+      fetchFeelingsFromDB();
+      StatusBar.setBackgroundColor('#A3D8F4');
+    }, [])
+  );
 
-    // ✅ 3. LÓGICA DE FILTRAGEM E CONTAGEM DENTRO DE UM useMemo
-    const { feelingDataForChart, maxValue } = useMemo(() => {
-        const selectedYear = visibleDate.getFullYear();
-        const selectedMonth = visibleDate.getMonth();
+  return (
+    <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} overScrollMode="never">
+      <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+        <View style={styles.Seta}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.botaoVoltar}>
+            <ChevronLeft color="black" />
+          </TouchableOpacity>
+          <Text>Voltar</Text>
+        </View>
 
-        const feelingCounts = {
-            FELIZ: 0, TRISTE: 0, RAIVA: 0,
-            ANSIOSO: 0, TEDIO: 0, NEUTRO: 0
-        };
+        <View style={styles.calendarContainer}>
+          <Calendar
+            current={visibleDate.toISOString().split('T')[0]}
+            renderHeader={(date) => {
+              const mes = meses[date.getMonth()];
+              const ano = date.getFullYear();
+              return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
+            }}
+            style={{ width: 350 }}
+            onDayPress={(day) => {
+              setSelectedDay(day.day);
+              setSelectedFeeling("Função de visualização por dia ainda não implementada com SQLite.");
+              setModalVisible(true);
+            }}
+            onMonthChange={(month) => {
+              setVisibleDate(new Date(month.dateString));
+            }}
+          />
+        </View>
 
-        // Filtra as chaves (datas) para pegar apenas as do mês e ano visíveis
-        Object.keys(dailyFeelings).forEach(dateString => {
-            const entryDate = new Date(dateString);
-            if (entryDate.getFullYear() === selectedYear && entryDate.getMonth() === selectedMonth) {
-                const dayEntries = dailyFeelings[dateString];
-                if (Array.isArray(dayEntries)) {
-                    dayEntries.forEach(entry => {
-                        if (entry && entry.feeling) {
-                            const upperFeeling = String(entry.feeling).toUpperCase();
-                            if (feelingCounts[upperFeeling] !== undefined) {
-                                feelingCounts[upperFeeling]++;
-                            }
-                        }
-                    });
-                }
-            }
-        });
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Sentimentos no dia</Text>
+          <FeelingsChart data={feelingDataForChart} maxValue={maxValue} layout="horizontal" />
+        </View>
 
-        const dataForChart = Object.keys(feelingCounts).map(key => ({
-            label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
-            value: feelingCounts[key],
-            color: feelingColors[key] || '#A9A9AA'
-        }));
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(!modalVisible)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalView}>
+              <Text style={styles.modalTitleText}>Dia {selectedDay}</Text>
+              <ScrollView style={{ maxHeight: 200 }}>
+                <Text style={styles.modalText}>{selectedFeeling}</Text>
+              </ScrollView>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonClose]}
+                onPress={() => setModalVisible(!modalVisible)}
+              >
+                <Text style={styles.textStyle}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
-        const totalFeelings = Object.values(feelingCounts).reduce((sum, count) => sum + count, 0);
-        const max = totalFeelings > 0 ? totalFeelings : 1;
+        <TouchableOpacity style={{
+          height: 40, width: '60%', alignItems: 'center', justifyContent: 'center', marginTop: '2%', borderRadius: 20, borderWidth: 1, alignSelf: 'center', backgroundColor: '#ffffff', borderColor: 'transparent',
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 2,
+        }} onPress={() => router.replace('/pages/Charts/Month')}>
+          <Text style={{ fontFamily: "Nunito", fontSize: 18 }}>Acessar relatório mensal</Text>
+        </TouchableOpacity>
 
-        return { feelingDataForChart: dataForChart, maxValue: max };
-    }, [dailyFeelings, visibleDate]); // Recalcula quando os dados ou o mês mudam
-
-    return (
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} overScrollMode="never">
-             <LinearGradient
-                        colors={['#eff6ff', '#dbeafe']}
-                        style={styles.background}
-                    >
-                <View style={styles.Seta}>
-                    <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.botaoVoltar}>
-                        <ChevronLeft color="black" />
-                    </TouchableOpacity>
-                    <Text>Voltar</Text>
-                </View>
-
-                <View style={styles.calendarContainer}>
-                    <Calendar
-                        // Força o calendário a começar no mês atual
-                        current={visibleDate.toISOString().split('T')[0]}
-                        renderHeader={(date) => {
-                            const mes = meses[date.getMonth()];
-                            const ano = date.getFullYear();
-                            return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
-                        }}
-                        style={{ width: 350 }}
-                        onDayPress={handleDayPress}
-                        // ✅ 2. ATUALIZA O ESTADO QUANDO O MÊS MUDA
-                        onMonthChange={(month) => {
-                            setVisibleDate(new Date(month.dateString));
-                        }}
-                    />
-                </View>
-
-                <View style={styles.chartContainer}>
-                    <Text style={styles.chartTitle}>Sentimentos no dia</Text>
-                    
-                        <FeelingsChart data={feelingDataForChart} maxValue={maxValue} layout="horizontal"/>
-                        
-                   
-                </View>
-
-                <Modal
-                    animationType="slide"
-                    transparent={true}
-                    visible={modalVisible}
-                    onRequestClose={() => setModalVisible(!modalVisible)}
-                >
-                    <View style={styles.modalContainer}>
-                        <View style={styles.modalView}>
-                            <Text style={styles.modalTitleText}>Dia {selectedDay}</Text>
-                            <ScrollView style={{ maxHeight: 200 }}>
-                                <Text style={styles.modalText}>{selectedFeeling}</Text>
-                            </ScrollView>
-                            <TouchableOpacity
-                                style={[styles.button, styles.buttonClose]}
-                                onPress={() => setModalVisible(!modalVisible)}
-                            >
-                                <Text style={styles.textStyle}>Fechar</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-                <TouchableOpacity style={{
-                    height: 40, width: '60%', alignItems: 'center', justifyContent: 'center', marginTop:'2%',borderRadius: 20, borderWidth: 1, alignSelf: 'center', backgroundColor: '#ffffff', borderColor: 'transparent', 
-                    shadowColor: '#000000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 8,
-                    elevation: 2,
-                }} onPress={()=> router.replace('/pages/Charts/Month')}>
-                    <Text style={{ fontFamily: "Nunito", fontSize: 18 }}>Acessar relatório mensal</Text>
-                </TouchableOpacity>
-                <View style={{height:20}}/>
-                
-
-            </LinearGradient>
-        </ScrollView >
-    );
+        <View style={{ height: 20 }} />
+      </LinearGradient>
+    </ScrollView>
+  );
 };
 
 export default Analystic;
+
 
 
 const styles = StyleSheet.create({

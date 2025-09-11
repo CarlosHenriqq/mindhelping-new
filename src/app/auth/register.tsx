@@ -1,4 +1,5 @@
 import { useFocusEffect, useNavigation, } from '@react-navigation/native';
+import axios from 'axios';
 import { router } from 'expo-router';
 import { Calendar, ChevronDown, ChevronUp, IdCard, Lock, Mail, Phone, User, XCircleIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
@@ -15,6 +16,7 @@ import {
     View
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
+import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 import { isValidCPF, isValidEmail, isValidPassword, isValidPhone } from '../../validators/validator';
 
 
@@ -117,11 +119,53 @@ export default function SignUp() {
     };
 
 
-    const handleSignUp = () => {
-        if (validateForm()) {
-            navigation.navigate('Login');
+    async function registerUser(formData) {
+        const {
+            name,
+            birth_date,
+            cpf,
+            address,
+            neighborhood,
+            number,
+            complement,
+            cepUser,
+            city,
+            uf,
+            phone,
+            email,
+            password,
+            gender
+        } = formData;
+
+        const payload = {
+            name: name ?? null,
+            birth_date: birth_date ?? null,
+            cpf: cpf ?? null,
+            address: address ?? null,
+            neighborhood: neighborhood ?? null,
+            number: number ?? null,
+            complement: complement ?? null,
+            cepUser: cepUser ?? null,
+            city: city ?? null,
+            uf: uf ?? null,
+            phone: phone ?? null,
+            email: email ?? null,
+            password: password ?? null,
+            gender: gender ?? null
+        };
+        if (validateForm) {
+
+            try {
+                const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.USER}`, payload);
+                console.log("✅ Usuário registrado com sucesso:", response.data);
+                return response.data;
+            } catch (error) {
+                console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
+                throw error;
+            }
         }
-    };
+    }
+
 
 
 
@@ -210,14 +254,14 @@ export default function SignUp() {
             render: () => (
                 <View style={{ width: '100%', marginBottom: 10 }}>
                     <View style={errors.gender ? { borderColor: '#DDD', borderWidth: 0, borderRadius: 20 } : null}>
-                        
+
                         <DropDownPicker
                             open={open}
                             value={value}
                             listMode="SCROLLVIEW"
                             placeholder='Selecione sua identidade de gênero'
                             items={genderItem}
-                            
+
                             setOpen={setOpen}
                             setValue={setValue}
                             setItems={setGenderItem}
@@ -324,7 +368,7 @@ export default function SignUp() {
                     <Text style={styles.title}>INSCREVA-SE</Text>
                     <Text style={styles.subtitle}>Crie sua conta!</Text>
                 </View>
-               
+
 
 
 
@@ -421,7 +465,7 @@ export default function SignUp() {
                         </TouchableOpacity>
                     </View>
                     <View style={styles.textButtonContainer}>
-                        <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+                        <TouchableOpacity style={styles.button} onPress={registerUser}>
                             <Text style={styles.buttonText}>Inscreva-se</Text>
                         </TouchableOpacity>
                     </View>
@@ -452,7 +496,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         paddingTop: StatusBar.currentHeight || 0,
-        marginTop:'15%'
+        marginTop: '15%'
     },
     header: {
         flex: 1,

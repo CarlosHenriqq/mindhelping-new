@@ -1,18 +1,17 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
-// 1. Importa a função do novo serviço de notificação
-import { goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification } from '../../../notificationService';
+import { insertFeelingInDB, mostrarNotas, updateLastFeelingNote } from '../../../services/database'; // <-- suas funções do banco
+import {
+    goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification
+} from '../../../services/notificationService';
 
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
 
-// --- Dados para os Modais de Dicas ---
 const relaxationTips = [
     {
         title: "Que tal tentarmos meditar?",
@@ -29,7 +28,7 @@ const relaxationTips = [
         tips: [
             "Compartilhar seus sentimentos pode aliviar o peso emocional.",
             "Ouvir outras pessoas pode te dar novas perspectivas.",
-            "Lembre-se de ser respeitoso e empático com os outros.",
+            "Lembre-se de ser respeitoso e empático com os outros."
         ]
     },
     {
@@ -53,7 +52,6 @@ const relaxationTips = [
 ];
 
 export default function Home() {
-
     const [feelings] = useState([
         { text: "FELIZ", image: require('../../../../assets/images/slide/feliz.png') },
         { text: "TRISTE", image: require('../../../../assets/images/slide/triste.png') },
@@ -65,71 +63,64 @@ export default function Home() {
 
     const [modalSelected, setModalSelect] = useState(false);
     const [inputText, setInputText] = useState('');
-    const [selectedFeeling, setSelectedFeeling] = useState();
-    const [selectedFeelingIndex, setSelectedFeelingIndex] = useState(true);
-
+    const [selectedFeelingIndex, setSelectedFeelingIndex] = useState(0);
     const [isTipsModalVisible, setIsTipsModalVisible] = useState(false);
     const [modalContent, setModalContent] = useState({ title: '', tips: [] });
+    const [nextAppointment, setNextAppointment] = useState(null);
 
     const dadosDaConsulta = {
-    id: 'consulta-alessandra-15-10-2024', // Um ID único para esta consulta
-    professionalName: 'Dra. Alessandra',
-    date: new Date('2025-09-09T22:50:00') // É crucial que seja um objeto Date
-};
+        id: 'consulta-alessandra-15-10-2024',
+        professionalName: 'Dra. Alessandra',
+        date: new Date('2025-10-15T16:00:00'),
+        title: 'Psicóloga',
+        phone: '18 99756-2102',
+        email: 'alessandra.psi@gmail.com',
+        address: 'Rua das Flores, 123, Birigui - SP'
+    };
 
-    // 2. O useEffect agora está muito mais limpo e apenas chama a função
     useEffect(() => {
         scheduleDailyReminderNotification();
         goalsWeeklyNotification();
         scheduleWeeklyReportNotification();
         scheduleAppointmentReminder(dadosDaConsulta);
+        setNextAppointment(dadosDaConsulta);
+        visualizarNotas();
+        
 
+    }, []);
 
-    }, []); // O array vazio [] garante que esta lógica rode apenas uma vez
-
-    useFocusEffect(
-        React.useCallback(() => {
-            const loadFeeling = async () => {
-                const storedFeeling = await AsyncStorage.getItem('@selectedFeeling');
-                setSelectedFeeling(storedFeeling || null);
-            };
-            loadFeeling();
-        }, [])
-    );
-
+    // --- Função para registrar sentimento no banco ---
     const registerFeelingWithTime = async (feeling) => {
         const currentTime = new Date().toISOString().split('T')[1].substring(0, 5);
         const today = new Date().toISOString().split('T')[0];
+
         try {
-            const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
-            const dailyFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-            if (!Array.isArray(dailyFeelings[today])) {
-                dailyFeelings[today] = [];
-            }
-            dailyFeelings[today].push({ feeling, time: currentTime });
-            await AsyncStorage.setItem('@dailyFeelings', JSON.stringify(dailyFeelings));
+            await insertFeelingInDB({
+                date: today,
+                time: currentTime,
+                feeling
+            });
             console.log(`Sentimento registrado às ${currentTime}: ${feeling}`);
+            setModalSelect(true);
         } catch (e) {
             console.log("Erro ao registrar o sentimento: ", e);
         }
     };
-
+    const visualizarNotas = async () => {
+        const notas = await mostrarNotas();
+        notas.forEach((item, index) => {
+            
+        });
+    };
+    // --- Função para salvar nota no último sentimento ---
     const salvarTexto = async () => {
         if (inputText.trim()) {
-            const today = new Date().toISOString().split('T')[0];
             try {
-                const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
-                const dailyFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-                const todaysEntries = dailyFeelings[today];
-
-                if (Array.isArray(todaysEntries) && todaysEntries.length > 0) {
-                    const lastEntryIndex = todaysEntries.length - 1;
-                    todaysEntries[lastEntryIndex].note = inputText;
-                    await AsyncStorage.setItem('@dailyFeelings', JSON.stringify(dailyFeelings));
-                    console.log(`Nota adicionada: "${inputText}"`);
-                }
+                await updateLastFeelingNote(inputText);
+                
                 setInputText('');
                 setModalSelect(false);
+
             } catch (e) {
                 console.log("Erro ao salvar a nota do sentimento: ", e);
             }
@@ -145,13 +136,8 @@ export default function Home() {
 
     return (
         <View style={{ flex: 1 }}>
-            <LinearGradient
-                colors={['#eff6ff', '#dbeafe']}
-                style={styles.background}
-            >
-                <KeyboardAvoidingView style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
+            <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
                     <ScrollView style={styles.screen}>
                         <View style={styles.feeling}>
                             <View style={styles.containerUser}>
@@ -159,13 +145,8 @@ export default function Home() {
                                     <Text style={styles.userText}>Oi Carlos,</Text>
                                     <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
                                 </View>
-                                <TouchableOpacity onPress={() => {
-                                    router.replace('/pages/Perfil')
-                                }}>
-                                    <Image
-                                        source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                                        style={styles.foto}
-                                    />
+                                <TouchableOpacity onPress={() => router.replace('/pages/Perfil')}>
+                                    <Image source={{ uri: "https://i.pravatar.cc/150?img=38" }} style={styles.foto} />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -182,54 +163,60 @@ export default function Home() {
                             withPagination={false}
                             renderItem={({ item }) => (
                                 <View style={styles.slide}>
-                                    <TouchableOpacity onPress={() => {
-                                        registerFeelingWithTime(item.text);
-                                        setModalSelect(true);
-                                    }}>
+                                    <TouchableOpacity onPress={() => registerFeelingWithTime(item.text)}>
                                         <Image source={item.image} style={styles.img} />
                                     </TouchableOpacity>
                                 </View>
                             )}
                         />
 
+                        {/* Próxima consulta */}
                         <View style={styles.nextConsulta}>
                             <Text style={styles.textConsulta}>Sua próxima consulta: </Text>
                             <View style={styles.cardConsulta}>
-                                <Text style={styles.nameProf}>Dra. Alessandra</Text>
-                                <Text>Psicóloga</Text>
-                                <View style={styles.dadosPsi}>
-                                    <TouchableOpacity></TouchableOpacity>
-                                    <Text style={styles.contatoProf}>alessandra.psi@gmail.com</Text>
-                                </View>
-                                <View style={styles.telePsi}>
-                                    <TouchableOpacity></TouchableOpacity>
-                                    <Text style={styles.contatoProf}>18 99756-2102</Text>
-                                </View>
-                                <View style={styles.dadoConsulta}>
-                                    <Text style={styles.dateConsulta}>Data</Text>
-                                    <Text style={styles.dateConsulta}>Horário</Text>
-                                </View>
-                                <View style={styles.dadosConsulta}>
-                                    <Text>15/10/2024</Text>
-                                    <Text>16:00h</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.dateConsulta}>Endereço</Text>
-                                </View>
-                                <View>
-                                    <Text style={styles.dadosLocConsulta}>Lorem ipsum dolor sit quaerat minus, Birigui - SP </Text>
-                                    <View style={styles.maps}>
-                                        <TouchableOpacity></TouchableOpacity>
-                                        <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
-                                    </View>
-                                </View>
+                                {nextAppointment ? (
+                                    <>
+                                        <Text style={styles.nameProf}>{nextAppointment.professionalName}</Text>
+                                        <Text>{nextAppointment.title}</Text>
+
+                                        <View style={styles.dadosPsi}>
+                                            <Text style={styles.contatoProf}>{nextAppointment.email}</Text>
+                                        </View>
+                                        <View style={styles.telePsi}>
+                                            <Text style={styles.contatoProf}>{nextAppointment.phone}</Text>
+                                        </View>
+
+                                        <View style={styles.dadoConsulta}>
+                                            <Text style={styles.dateConsulta}>Data</Text>
+                                            <Text style={styles.dateConsulta}>Horário</Text>
+                                        </View>
+                                        <View style={styles.dadosConsulta}>
+                                            <Text>{new Date(nextAppointment.date).toLocaleDateString('pt-BR')}</Text>
+                                            <Text>{new Date(nextAppointment.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</Text>
+                                        </View>
+
+                                        <View>
+                                            <Text style={styles.dateConsulta}>Endereço</Text>
+                                        </View>
+                                        <View>
+                                            <Text style={styles.dadosLocConsulta}>{nextAppointment.address}</Text>
+                                            <View style={styles.maps}>
+                                                <TouchableOpacity>
+                                                    <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    </>
+                                ) : (
+                                    <Text style={{ fontWeight: 'bold', textAlign: 'center' }}>Nenhuma consulta agendada</Text>
+                                )}
                             </View>
                         </View>
 
                         <View style={{ marginLeft: '6%', marginTop: '6%' }}>
                             <Text style={{ fontFamily: 'Nunito', fontSize: 16 }}>Agende sua próxima consulta:</Text>
                         </View>
-                        <View >
+                        <View>
                             <TouchableOpacity onPress={() => router.replace('/pages/Agendamento')} style={styles.searchProf}>
                                 <Text>Procurar Profissionais</Text>
                             </TouchableOpacity>
@@ -239,11 +226,7 @@ export default function Home() {
                             <Text style={styles.textRelax}>Que tal relaxar?</Text>
                             <View style={styles.grid}>
                                 {relaxationTips.map((item, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        style={styles.card}
-                                        onPress={() => openTipsModal(item)}
-                                    >
+                                    <TouchableOpacity key={index} style={styles.card} onPress={() => openTipsModal(item)}>
                                         <Text style={styles.cardText}>{item.title}</Text>
                                     </TouchableOpacity>
                                 ))}
@@ -252,6 +235,7 @@ export default function Home() {
                     </ScrollView>
                 </KeyboardAvoidingView>
 
+                {/* Modal de nota */}
                 {modalSelected && (
                     <View style={styles.modalContainer}>
                         <TouchableWithoutFeedback onPress={() => setModalSelect(false)}>
@@ -259,22 +243,15 @@ export default function Home() {
                         </TouchableWithoutFeedback>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Por que você está se sentindo assim?</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Digite aqui"
-                                value={inputText}
-                                onChangeText={setInputText}
-                            />
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={salvarTexto}
-                            >
+                            <TextInput style={styles.input} placeholder="Digite aqui" value={inputText} onChangeText={setInputText} />
+                            <TouchableOpacity style={styles.modalButton} onPress={salvarTexto}>
                                 <Text style={styles.modalButtonText}>Salvar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 )}
 
+                {/* Modal de dicas */}
                 {isTipsModalVisible && (
                     <View style={styles.modalContainer}>
                         <TouchableWithoutFeedback onPress={() => setIsTipsModalVisible(false)}>
@@ -287,10 +264,7 @@ export default function Home() {
                                     <Text key={index} style={styles.tipText}>• {tip}</Text>
                                 ))}
                             </ScrollView>
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setIsTipsModalVisible(false)}
-                            >
+                            <TouchableOpacity style={styles.modalButton} onPress={() => setIsTipsModalVisible(false)}>
                                 <Text style={styles.modalButtonText}>Fechar</Text>
                             </TouchableOpacity>
                         </View>
@@ -299,7 +273,7 @@ export default function Home() {
             </LinearGradient>
         </View>
     );
-};
+}
 
 const styles = StyleSheet.create({
     background: {
@@ -308,12 +282,12 @@ const styles = StyleSheet.create({
     feeling: {
         marginVertical: 20,
         marginTop: 30,
-        paddingHorizontal: 20,
+        paddingHorizontal: 20
     },
     containerUser: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     textContainer: {
         flex: 1,
@@ -332,44 +306,34 @@ const styles = StyleSheet.create({
         borderColor: "white",
         borderWidth: 2,
         position: 'absolute',
-        marginBottom: 12,
+        marginBottom: 12
     },
     textFeeling: {
         fontSize: 18,
-        fontWeight: 'bold',
-    },
-    page: {
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    imgUser: {
-        width: 50,
-        height: 50,
-        borderRadius: 20,
-        marginLeft: 10,
+        fontWeight: 'bold'
     },
     img: {
         maxWidth: '95%',
         height: '95%',
         alignSelf: 'center',
-        borderRadius: 20,
+        borderRadius: 20
     },
     slide: {
         width: '100%',
         height: 200,
         justifyContent: 'center',
         alignItems: 'center',
-        position: 'relative',
+        position: 'relative'
     },
     nextConsulta: {
-        top: 20,
+        top: 20
     },
     textConsulta: {
         fontSize: 16,
         marginBottom: -5,
         fontFamily: 'Mukta-Bold',
         textAlign: 'left',
-        paddingLeft: 22,
+        paddingLeft: 22
     },
     cardConsulta: {
         backgroundColor: '#ffffff',
@@ -380,12 +344,13 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOpacity: 0.25,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
+        elevation: 5
     },
     nameProf: {
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: 'bold'
     },
+    // --- ESTILOS ADICIONADOS ---
     contatoProf: {
         fontWeight: 'bold',
     },
@@ -414,27 +379,28 @@ const styles = StyleSheet.create({
         gap: '41.5%',
         marginBottom: 10,
     },
-    dadosLocConsulta: {
-        fontWeight: 'bold',
-        marginBottom: 5,
-    },
     maps: {
         flexDirection: 'row',
     },
+    // --- FIM DOS ESTILOS ADICIONADOS ---
+    dadosLocConsulta: {
+        fontWeight: 'bold',
+        marginBottom: 5
+    },
     containerRelax: {
-        margin: 15,
+        margin: 15
     },
     textRelax: {
         fontSize: 16,
         marginBottom: 5,
         fontFamily: 'Mukta-Bold',
         textAlign: 'left',
-        paddingLeft: 10,
+        paddingLeft: 10
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-around',
+        justifyContent: 'space-around'
     },
     card: {
         backgroundColor: '#7296c5ff',
@@ -443,20 +409,20 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         marginVertical: 10,
         justifyContent: 'center',
-        minHeight: 100,
+        minHeight: 100
     },
     cardText: {
         color: 'white',
         alignItems: 'center',
         fontWeight: 'bold',
         textAlign: 'center',
-        justifyContent: 'center',
+        justifyContent: 'center'
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 15,
-        textAlign: 'center',
+        textAlign: 'center'
     },
     input: {
         width: '100%',
@@ -464,7 +430,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#ccc',
         borderRadius: 20,
-        marginBottom: 15,
+        marginBottom: 15
     },
     modalButton: {
         backgroundColor: '#2980B9',
@@ -472,12 +438,12 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         width: '100%',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 10
     },
     modalButtonText: {
         color: '#fff',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: 'bold'
     },
     searchProf: {
         marginTop: '5%',
@@ -494,14 +460,14 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         shadowOpacity: 0.25,
         shadowOffset: { width: 0, height: 2 },
-        elevation: 5,
+        elevation: 5
     },
     tipText: {
         fontSize: 15,
         color: '#333',
         marginBottom: 10,
         lineHeight: 22,
-        width: '100%',
+        width: '100%'
     },
     modalContainer: {
         position: 'absolute',
@@ -510,7 +476,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
         justifyContent: 'center',
-        alignItems: 'center',
+        alignItems: 'center'
     },
     modalOverlay: {
         position: 'absolute',
@@ -518,7 +484,7 @@ const styles = StyleSheet.create({
         left: 0,
         width: '100%',
         height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)'
     },
     modalContent: {
         width: '80%',
@@ -531,7 +497,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,
-        zIndex: 10,
+        zIndex: 10
     },
     tipsModalContent: {
         width: '90%',
@@ -545,7 +511,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.25,
         shadowRadius: 4,
         elevation: 5,
-        zIndex: 10,
+        zIndex: 10
     },
 });
-

@@ -97,6 +97,18 @@ export default function TabLayout() {
         name="Perfil/editPerfil/index" // ou o nome do seu arquivo
         options={{ href: null }} 
       />
+      <Tabs.Screen 
+        name="Perfil/Privacidade/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Perfil/FAQ/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
+      <Tabs.Screen 
+        name="Perfil/Notificacoes/index" // ou o nome do seu arquivo
+        options={{ href: null }} 
+      />
     </Tabs>
   );
 }

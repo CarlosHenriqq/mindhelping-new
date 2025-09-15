@@ -10,7 +10,7 @@ import {
     MapPin,
     TrophyIcon
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Image,
     ScrollView, // <-- 2. ADICIONADO SCROLLVIEW
@@ -19,9 +19,11 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
+import { getMaxGoalsCompleted } from "../../../services/database";
 
 export default function Perfil() {
     const [lastFeeling, setLastFeeling] = useState("");
+    const [qtdeMetas, setQtdeMetas] = useState(0)
 
     async function loadLastFeeling() {
         try {
@@ -46,12 +48,26 @@ export default function Perfil() {
         }
     }
 
+    async function getMetas() {
+        try {
+            const qtde = await getMaxGoalsCompleted()
+            setQtdeMetas(qtde)
+            console.log(qtdeMetas)
+        }
+        catch {
+            console.log(error)
+        }
+    }
+
     useFocusEffect(
         React.useCallback(() => {
             loadLastFeeling();
+            getMetas()
         }, [])
     );
-
+       useEffect(() => {
+        getMetas();
+    }, []);
     return (
         <LinearGradient
             colors={['#eff6ff', '#dbeafe']}
@@ -89,7 +105,7 @@ export default function Perfil() {
                     <View style={styles.cardsContainer}>
                         <View style={styles.card}>
                             <Text style={styles.cardLabel}>Metas concluídas</Text>
-                            <Text style={styles.cardValue}>2</Text>
+                            <Text style={styles.cardValue}>{qtdeMetas}</Text>
                         </View>
                         <View style={styles.card}>
                             <Text style={styles.cardLabel}>Último humor</Text>
@@ -100,19 +116,19 @@ export default function Perfil() {
 
                 {/* SEÇÃO DE CONFIGURAÇÕES */}
                 <View style={styles.settingsContainer}>
-                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/Privacidade')}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={() => router.replace('/pages/Perfil/Privacidade')}>
                         <Cog size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>Privacidade e segurança</Text>
                         <ChevronRight size={20} color={"#999"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/Notificacoes')}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={() => router.replace('/pages/Perfil/Notificacoes')}>
                         <Bell size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>Notificações</Text>
                         <ChevronRight size={20} color={"#999"} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingsItem} onPress={()=> router.replace('/pages/Perfil/FAQ')}>
+                    <TouchableOpacity style={styles.settingsItem} onPress={() => router.replace('/pages/Perfil/FAQ')}>
                         <CircleQuestionMark size={20} color={"#333"} />
                         <Text style={styles.settingsItemText}>FAQ</Text>
                         <ChevronRight size={20} color={"#999"} />
@@ -264,7 +280,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 5,
-       
+
     },
     settingsItemText: {
         flex: 1,

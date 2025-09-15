@@ -1,14 +1,16 @@
+import * as Crypto from 'expo-crypto'; // Importado para gerar IDs únicos
 import * as SQLite from 'expo-sqlite';
 
 let db = null;
 
 /**
- * Inicializa o banco de dados SQLite
+ * Inicializa o banco de dados SQLite e cria todas as tabelas necessárias.
  */
 export const initDatabase = async () => {
     try {
         db = await SQLite.openDatabaseAsync('mindcare.db');
 
+        // Tabela para registros de sentimentos
         await db.runAsync(`
       CREATE TABLE IF NOT EXISTS feelings_log (
         id INTEGER PRIMARY KEY NOT NULL,
@@ -19,6 +21,7 @@ export const initDatabase = async () => {
       );
     `);
 
+        // Tabela para agendamentos de consultas
         await db.runAsync(`
       CREATE TABLE IF NOT EXISTS appointments (
         id INTEGER PRIMARY KEY NOT NULL,
@@ -30,35 +33,45 @@ export const initDatabase = async () => {
         appointment_date TEXT NOT NULL
       );
     `);
-      
-await db.runAsync(`
-  CREATE TABLE IF NOT EXISTS goals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    userPersonId TEXT NOT NULL,
-    description TEXT NOT NULL,
-    numberDays INTEGER NOT NULL,
-    daysCompleted INTEGER NOT NULL,
-    created_at TEXT NOT NULL
-  );
-`);
-     console.log("✅ Banco SQLite inicializado com sucesso.");
+
+        // Tabela de metas do usuário
+        await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS goals (
+        id TEXT PRIMARY KEY NOT NULL, -- ALTERADO: Para ser compatível com IDs da API
+        userPersonId TEXT NOT NULL,
+        description TEXT NOT NULL,
+        numberDays INTEGER NOT NULL,
+        daysCompleted INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+        // ✅ NOVO: Tabela para rastrear o último clique em cada meta
+        await db.runAsync(`
+      CREATE TABLE IF NOT EXISTS goal_clicks (
+        goalId TEXT PRIMARY KEY NOT NULL,
+        lastClickDate TEXT NOT NULL
+      );
+    `);
+
+        console.log("✅ Banco SQLite inicializado com sucesso.");
     } catch (error) {
         console.error("❌ Erro ao inicializar SQLite:", error);
     }
 };
 
 /**
- * Adiciona um sentimento no banco
+ * Adiciona um sentimento no banco.
  */
 export const addFeelingLog = async (feeling, timestamp) => {
     if (!db) throw new Error("Banco não inicializado");
-
     try {
+        // CORRIGIDO: A variável 'date' não estava definida.
+        const date = timestamp.split(' ')[0];
         const result = await db.runAsync(
-            "INSERT INTO feelings_log (feeling, date, note, timestamp) VALUES (?, ?, ?,?);",
+            "INSERT INTO feelings_log (feeling, date, note, timestamp) VALUES (?, ?, ?, ?);",
             [feeling, date, null, timestamp]
         );
-
         return result.lastInsertRowId;
     } catch (error) {
         console.error("❌ Erro ao adicionar sentimento:", error);
@@ -67,11 +80,10 @@ export const addFeelingLog = async (feeling, timestamp) => {
 };
 
 /**
- * Atualiza a nota de um sentimento específico
+ * Atualiza a nota de um sentimento específico.
  */
 export const updateFeelingNote = async (id, note) => {
     if (!db) throw new Error("Banco não inicializado");
-
     try {
         await db.runAsync(
             "UPDATE feelings_log SET note = ? WHERE id = ?;",
@@ -84,20 +96,17 @@ export const updateFeelingNote = async (id, note) => {
 };
 
 /**
- * Retorna a próxima consulta agendada
+ * Retorna a próxima consulta agendada.
  */
 export const getNextAppointment = async () => {
     if (!db) throw new Error("Banco não inicializado");
-
     try {
         const now = new Date().toISOString();
-
-        const result = await db.getAllAsync(
+        const result = await db.getFirstAsync(
             "SELECT * FROM appointments WHERE appointment_date > ? ORDER BY appointment_date ASC LIMIT 1;",
             [now]
         );
-
-        return result.length > 0 ? result[0] : null;
+        return result || null;
     } catch (error) {
         console.error("❌ Erro ao buscar próxima consulta:", error);
         throw error;
@@ -105,14 +114,13 @@ export const getNextAppointment = async () => {
 };
 
 /**
- * Adiciona uma consulta de exemplo caso não exista nenhuma
+ * Adiciona uma consulta de exemplo caso não exista nenhuma.
  */
 export const addSampleAppointment = async () => {
     if (!db) throw new Error("Banco não inicializado");
-
     try {
-        const result = await db.getAllAsync("SELECT COUNT(*) as count FROM appointments;");
-        const count = result[0]?.count ?? 0;
+        const result = await db.getFirstAsync("SELECT COUNT(*) as count FROM appointments;");
+        const count = result?.count ?? 0;
 
         if (count === 0) {
             const sample = {
@@ -123,7 +131,6 @@ export const addSampleAppointment = async () => {
                 address: 'Rua das Flores, 123, Birigui - SP',
                 appointment_date: '2025-10-15',
             };
-
             await db.runAsync(
                 `INSERT INTO appointments 
          (professional_name, professional_title, email, phone, address, appointment_date) 
@@ -137,25 +144,24 @@ export const addSampleAppointment = async () => {
                     sample.appointment_date,
                 ]
             );
-
-            
-        } else {
-            }
+        }
     } catch (error) {
         console.error("❌ Erro ao adicionar consulta de exemplo:", error);
         throw error;
     }
 };
 
-export const insertFeelingInDB = async ({ date, time, feeling }) => {
+export const insertFeelingInDB = async ({
+    date,
+    time,
+    feeling
+}) => {
     if (!db) throw new Error("Banco não inicializado");
-
     const timestamp = `${date} ${time}`;
-
     try {
         const result = await db.runAsync(
-            "INSERT INTO feelings_log (feeling, note, timestamp) VALUES (?, ?, ?);",
-            [feeling, null, timestamp]
+            "INSERT INTO feelings_log (feeling, date, note, timestamp) VALUES (?, ?, ?, ?);",
+            [feeling, date, null, timestamp]
         );
         return result.lastInsertRowId;
     } catch (error) {
@@ -165,28 +171,24 @@ export const insertFeelingInDB = async ({ date, time, feeling }) => {
 };
 
 /**
- * Atualiza a nota do último sentimento registrado no dia
+ * Atualiza a nota do último sentimento registrado no dia.
  */
 export const updateLastFeelingNote = async (note) => {
     if (!db) throw new Error("Banco não inicializado");
-
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+    const today = new Date().toISOString().split('T')[0];
     try {
-        const result = await db.getAllAsync(
+        const result = await db.getFirstAsync(
             "SELECT id FROM feelings_log WHERE timestamp LIKE ? ORDER BY id DESC LIMIT 1;",
             [`${today}%`]
         );
 
-        if (result.length === 0) return false;
+        if (!result) return false;
 
-        const id = result[0].id;
-
+        const id = result.id;
         await db.runAsync(
             "UPDATE feelings_log SET note = ? WHERE id = ?;",
             [note, id]
         );
-
         return true;
     } catch (error) {
         console.error("❌ Erro ao atualizar nota:", error);
@@ -196,11 +198,8 @@ export const updateLastFeelingNote = async (note) => {
 
 export const mostrarNotas = async () => {
     if (!db) throw new Error("Banco não inicializado");
-
     try {
-        const result = await db.getAllAsync("SELECT note FROM feelings_log;");
-        
-        return result;
+        return await db.getAllAsync("SELECT note FROM feelings_log;");
     } catch (error) {
         console.error("❌ Erro ao buscar notas:", error);
         throw error;
@@ -209,58 +208,108 @@ export const mostrarNotas = async () => {
 
 export const countFeelingPDay = async () => {
     if (!db) throw new Error("Banco não inicializado");
-
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+    const today = new Date().toISOString().split('T')[0];
     try {
-        const result = await db.getAllAsync(
+        return await db.getAllAsync(
             `SELECT feeling, COUNT(id) as total 
        FROM feelings_log 
        WHERE timestamp LIKE ? 
        GROUP BY feeling;`,
             [`${today}%`]
         );
-
-        
-        return result;
     } catch (error) {
         console.error("❌ Erro ao buscar quantidade por sentimento:", error);
         throw error;
     }
 };
 
-export const saveLocalGoal = async ({ userPersonId, description, numberDays }) => {
+
+// --- Funções de Metas (Goals) ---
+
+/**
+ * Salva uma nova meta no banco de dados local. Gera um ID se não for fornecido.
+ */
+export const saveLocalGoal = async ({ id, userPersonId, description, numberDays }) => {
+    if (!db) throw new Error("Banco não inicializado");
+    const goalId = id || Crypto.randomUUID(); // Usa o ID da API ou gera um novo
     const createdAt = new Date().toISOString();
     return await db.runAsync(
-        `INSERT INTO goals (userPersonId, description, numberDays, daysCompleted, created_at)
-     VALUES (?, ?, ?, ?, ?);`,
-        [userPersonId, description, numberDays, 0, createdAt]
+        `INSERT INTO goals (id, userPersonId, description, numberDays, daysCompleted, created_at)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+        [goalId, userPersonId, description, numberDays, 0, createdAt]
     );
 };
 
+/**
+ * Retorna todas as metas salvas localmente.
+ */
 export const getLocalGoals = async () => {
+    if (!db) throw new Error("Banco não inicializado");
     return await db.getAllAsync("SELECT * FROM goals ORDER BY created_at DESC;");
 };
 
+/**
+ * Atualiza o progresso (dias completos) de uma meta específica.
+ */
 export const updateGoalProgress = async (goalId, newProgress) => {
+    if (!db) throw new Error("Banco não inicializado");
     return await db.runAsync(
         "UPDATE goals SET daysCompleted = ? WHERE id = ?;",
         [newProgress, goalId]
     );
 };
 
+/**
+ * Retorna a data do último clique para uma meta específica.
+ */
 export const getLastClickDate = async (goalId) => {
-    const result = await db.getAllAsync(
+    if (!db) throw new Error("Banco não inicializado");
+    const result = await db.getFirstAsync(
         "SELECT lastClickDate FROM goal_clicks WHERE goalId = ?;",
         [goalId]
     );
-    return result.length > 0 ? result[0].lastClickDate : null;
+    return result?.lastClickDate || null;
 };
 
+/**
+ * Salva ou atualiza a data do último clique para uma meta.
+ */
 export const setLastClickDate = async (goalId, date) => {
-    await db.runAsync(
+    if (!db) throw new Error("Banco não inicializado");
+    return await db.runAsync(
         `INSERT OR REPLACE INTO goal_clicks (goalId, lastClickDate) VALUES (?, ?);`,
         [goalId, date]
     );
-}
+};
 
+/**
+ * Conta o número de metas que foram concluídas.
+ */
+export const getMaxGoalsCompleted = async () => {
+    if (!db) throw new Error("Banco não inicializado");
+    try {
+        // CORRIGIDO: Adicionado "AS qtde" e usado getFirstAsync
+        const result = await db.getFirstAsync(
+            "SELECT COUNT(id) AS qtde FROM goals WHERE daysCompleted >= numberDays;"
+        );
+        return result?.qtde || 0;
+    } catch (error) {
+        console.error("❌ Erro ao buscar metas concluídas:", error);
+        return 0; // Retorna 0 em caso de erro
+    }
+};
+
+/**
+ * Exclui uma meta do banco de dados local.
+ */
+export const deleteLocalGoal = async (metaId) => {
+    if (!db) throw new Error("Banco não inicializado");
+    try {
+        // CORRIGIDO: Nome da tabela era 'metas', agora é 'goals'.
+        await db.runAsync("DELETE FROM goals WHERE id = ?;", [metaId]);
+        console.log(`Meta ${metaId} deletada localmente.`);
+    } catch (error) {
+        console.log(`❌ Erro ao deletar meta ${metaId} localmente:`, error);
+        throw error;
+    }
+};

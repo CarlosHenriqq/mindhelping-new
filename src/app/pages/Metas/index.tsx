@@ -1,149 +1,185 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from 'expo-router';
-import { Pencil, Trash2 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import ProgressBar from '../../../../components/progessBar';
-import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
-import { getLocalGoals, saveLocalGoal, setLastClickDate, updateGoalProgress } from '../../../services/database';
+import { useFocusEffect } from "@react-navigation/native";
+import axios from "axios";
+import { LinearGradient } from "expo-linear-gradient";
+import { Pencil, Trash2 } from "lucide-react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 
-const celebrationGif = require('../../../../assets/animations/celebration.gif');
+import ProgressBar from "../../../../components/progessBar";
+import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
+import {
+    deleteLocalGoal,
+    getLastClickDate,
+    getLocalGoals,
+    saveLocalGoal,
+    setLastClickDate,
+    updateGoalProgress
+} from "../../../services/database";
+
+const celebrationGif = require("../../../../assets/animations/celebration.gif");
 
 const Metas = () => {
     const [metas, setMetas] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
-    const [novaMetaText, setNovaMetaText] = useState('');
-    const [numeroDias, setNumeroDias] = useState('');
+    const [novaMetaText, setNovaMetaText] = useState("");
+    const [numeroDias, setNumeroDias] = useState("");
     const [showCelebration, setShowCelebration] = useState(false);
+    const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
+    const [goalToDeleteId, setGoalToDeleteId] = useState(null);
 
-    // Carrega e verifica o estado das metas toda vez que a tela recebe foco
+    // 🔄 Carregar metas sempre que a tela receber foco
     useFocusEffect(
         useCallback(() => {
-            const loadAndCheckMetas = async () => {
-                const savedMetas = await AsyncStorage.getItem('@metas');
-                if (!savedMetas) {
-                    setMetas([]);
-                    return;
-                }
-
-                const parsedMetas = JSON.parse(savedMetas);
-                const today = new Date().toISOString().split('T')[0];
-
-                const checkedMetas = await Promise.all(
-                    parsedMetas.map(async (meta) => {
-                        const lastClickDate = await AsyncStorage.getItem(`@lastClickDate_${meta.id}`);
-                        return { ...meta, disabled: lastClickDate === today };
-                    })
-                );
-                setMetas(checkedMetas);
-            };
-            loadAndCheckMetas();
+            loadMetas();
         }, [])
     );
-    // Efeito para esconder a celebração após 5 segundos
+
+    // 🎉 Esconder a animação após 5s
     useEffect(() => {
         let timer;
         if (showCelebration) {
-            timer = setTimeout(() => {
-                setShowCelebration(false);
-            }, 5000); // 5000 milissegundos = 5 segundos
+            timer = setTimeout(() => setShowCelebration(false), 5000);
         }
-        // Limpa o timer se o componente for desmontado ou se a celebração for fechada manualmente
         return () => clearTimeout(timer);
     }, [showCelebration]);
 
+    const loadMetas = async () => {
+        try {
+            const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`);
+            const today = new Date().toISOString().split("T")[0];
+            const goals = response.data.goals || [];
+
+            const mappedMetas = await Promise.all(
+                goals.map(async (goal) => {
+                    const lastClickDate = await getLastClickDate(goal.id);
+                    return {
+                        id: goal.id,
+                        text: goal.description,
+                        totalDias: goal.numberDays,
+                        daysCompleted: goal.daysCompleted || 0,
+                        disabled: lastClickDate === today,
+                    };
+                })
+            );
+            setMetas(mappedMetas);
+        } catch (error) {
+            console.log("❌ Erro ao carregar metas da API:", error.message);
+            const localGoals = await getLocalGoals();
+            setMetas(
+                localGoals.map((goal) => ({
+                    id: goal.id,
+                    text: goal.description,
+                    totalDias: goal.numberDays,
+                    daysCompleted: goal.daysCompleted,
+                    disabled: false,
+                }))
+            );
+        }
+    };
+
+    // ✅ Marcar progresso de uma meta
     const handlePress = async (metaId) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split("T")[0];
         let metaCompleted = false;
 
         const updatedMetas = await Promise.all(
             metas.map(async (meta) => {
                 if (meta.id === metaId && !meta.disabled) {
                     const newDaysCompleted = meta.daysCompleted + 1;
-
-                    // Atualiza no banco
                     await updateGoalProgress(meta.id, newDaysCompleted);
                     await setLastClickDate(meta.id, today);
-
                     if (newDaysCompleted >= meta.totalDias) {
                         metaCompleted = true;
                     }
-
                     return { ...meta, daysCompleted: newDaysCompleted, disabled: true };
                 }
                 return meta;
             })
         );
-
         setMetas(updatedMetas);
+        if (metaCompleted) setShowCelebration(true);
+    };
 
-        if (metaCompleted) {
-            setShowCelebration(true);
+    // 🗑️ Excluir meta
+    const excluirMeta = async (metaId) => {
+        const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+        try {
+            await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`);
+            console.log(`✅ Meta ${metaId} excluída da API com sucesso.`);
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                console.log(`ℹ️ Meta ${metaId} não encontrada na API, provavelmente era uma meta local.`);
+            } else {
+                console.error("❌ Falha ao excluir meta da API:", error.message);
+                alert("Não foi possível excluir a meta. Verifique sua conexão e tente novamente.");
+                return;
+            }
+        }
+        try {
+            await deleteLocalGoal(metaId);
+            console.log(`✅ Meta ${metaId} excluída do SQLite com sucesso.`);
+        } catch (error) {
+            console.error("❌ Falha ao excluir meta do banco de dados local:", error.message);
+        }
+        setMetas((prevMetas) => prevMetas.filter((meta) => meta.id !== metaId));
+    };
+
+    // Lida com a confirmação da exclusão
+    const handleConfirmDelete = async () => {
+        if (goalToDeleteId) {
+            await excluirMeta(goalToDeleteId);
+            setShowConfirmDeleteModal(false);
+            setGoalToDeleteId(null);
         }
     };
 
-    const excluirMeta = (metaId) => {
-        const updatedMetas = metas.filter((meta) => meta.id !== metaId);
-        setMetas(updatedMetas);
-    };
-
-    async function addNewGoal() {
-        const description = novaMetaText;
+    // ➕ Adicionar nova meta
+    const addNewGoal = async () => {
+        const description = novaMetaText.trim();
         const numberDays = Number(numeroDias);
-        const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4"
+        const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+
+        if (!description || !numberDays) {
+            alert("Preencha todos os campos!");
+            return;
+        }
+
         try {
-            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
+            await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
                 userPersonId,
                 description,
-                numberDays
+                numberDays,
             });
-
-            await saveLocalGoal({ userPersonId, description, numberDays });
-            const metasAtualizadas = await getLocalGoals();
-
-            setMetas(metasAtualizadas.map(goal => ({
-                ...goal,
-                text: goal.description,
-                totalDias: goal.numberDays,
-                disabled: false
-            })));
-            setNovaMetaText('');
-            setNumeroDias('');
-            setModalVisible(false);
-            return response.data;
         } catch (error) {
-            if (error.response) {
-                console.log("❌ Erro ao criar meta:", error.response.data);
-                console.log("📋 Status:", error.response.status);
-                console.log("📄 Headers:", error.response.headers);
-            } else {
-                console.log("❌ Erro inesperado:", error.message);
-            }
-            await saveLocalGoal({ userPersonId, description, numberDays });
-            const metasOffline = await getLocalGoals();
-
-            setMetas(metasOffline.map(goal => ({
-                ...goal,
-                text: goal.description,
-                totalDias: goal.numberDays,
-                disabled: false
-            })));
-
-            setModalVisible(false);
+            console.log("⚠️ Erro de rede/API, salvando apenas no SQLite:", error.message);
         }
-    }
+
+        await saveLocalGoal({ userPersonId, description, numberDays });
+        await loadMetas();
+
+        setNovaMetaText("");
+        setNumeroDias("");
+        setModalVisible(false); // ✅ CORRIGIDO: Movido para o final
+    };
+
     return (
-        <LinearGradient
-            colors={['#eff6ff', '#dbeafe']}
-            style={styles.background}
-        >
+        <LinearGradient colors={["#eff6ff", "#dbeafe"]} style={styles.background}>
             <View style={styles.mainContainer}>
                 <ScrollView contentContainerStyle={styles.container}>
                     <View style={styles.textMetas}>
                         <Text style={styles.text}>Minhas Metas</Text>
                     </View>
+
                     <View style={styles.cardsMeta}>
                         {metas.length === 0 ? (
                             <View style={styles.emptyContainer}>
@@ -158,12 +194,22 @@ const Metas = () => {
                                         disabled={meta.disabled}
                                     >
                                         <Text style={styles.textCard}>{meta.text}</Text>
-                                        <View style={{ marginTop: '5%', marginBottom: '5%', flexDirection: 'row' }}>
-                                            <ProgressBar progress={meta.daysCompleted} total={meta.totalDias} />
-                                            <Text style={styles.daysText}>{meta.daysCompleted}/{meta.totalDias}</Text>
+                                        <View style={styles.progressRow}>
+                                            <ProgressBar
+                                                progress={meta.daysCompleted}
+                                                total={meta.totalDias}
+                                            />
+                                            <Text style={styles.daysText}>
+                                                {meta.daysCompleted}/{meta.totalDias}
+                                            </Text>
                                         </View>
                                         <View style={styles.actionsContainer}>
-                                            <TouchableOpacity onPress={() => excluirMeta(meta.id)}>
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    setGoalToDeleteId(meta.id);
+                                                    setShowConfirmDeleteModal(true);
+                                                }}
+                                            >
                                                 <Trash2 color="red" size={24} />
                                             </TouchableOpacity>
                                             <TouchableOpacity onPress={() => console.log("editar", meta.id)}>
@@ -177,6 +223,7 @@ const Metas = () => {
                     </View>
                 </ScrollView>
 
+                {/* ➕ Botão para nova meta */}
                 <TouchableOpacity
                     style={styles.newMetaContainer}
                     onPress={() => setModalVisible(true)}
@@ -184,6 +231,7 @@ const Metas = () => {
                     <Text style={styles.plusIcon}>+</Text>
                 </TouchableOpacity>
 
+                {/* 📌 Modal para adicionar nova meta */}
                 <Modal
                     animationType="slide"
                     transparent={true}
@@ -196,22 +244,17 @@ const Metas = () => {
                             <TextInput
                                 style={styles.input}
                                 placeholder="Nome da meta"
-                                placeholderTextColor={'#9ca3af'}
                                 value={novaMetaText}
                                 onChangeText={setNovaMetaText}
                             />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Número de dias"
-                                placeholderTextColor={'#9ca3af'}
                                 keyboardType="numeric"
                                 value={numeroDias}
                                 onChangeText={setNumeroDias}
                             />
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={addNewGoal}
-                            >
+                            <TouchableOpacity style={styles.modalButton} onPress={addNewGoal}>
                                 <Text style={styles.modalButtonText}>Adicionar</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -224,7 +267,38 @@ const Metas = () => {
                     </View>
                 </Modal>
 
-                {/* MODAL DE CELEBRAÇÃO COM O GIF */}
+                {/* 🗑️ Modal para CONFIRMAR EXCLUSÃO */}
+                <Modal
+                    animationType="fade"
+                    transparent={true}
+                    visible={showConfirmDeleteModal} // ✅ CORRIGIDO
+                    onRequestClose={() => setShowConfirmDeleteModal(false)} // ✅ CORRIGIDO
+                >
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Confirmar Exclusão</Text>
+                            <Text style={styles.modalBodyText}>
+                                Tem certeza que deseja excluir esta meta? Esta ação não pode ser desfeita.
+                            </Text>
+                            <View style={styles.modalButtonRow}>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: '#6c757d' }]}
+                                    onPress={() => setShowConfirmDeleteModal(false)}
+                                >
+                                    <Text style={styles.modalButtonText}>Cancelar</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.modalButton, { backgroundColor: '#dc3545' }]}
+                                    onPress={handleConfirmDelete}
+                                >
+                                    <Text style={styles.modalButtonText}>Excluir</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* 🎉 Modal de celebração */}
                 {showCelebration && (
                     <TouchableOpacity
                         style={styles.celebrationContainer}
@@ -233,10 +307,7 @@ const Metas = () => {
                     >
                         <View style={styles.celebrationContent}>
                             <Text style={styles.celebrationTitle}>Meta Concluída!</Text>
-                            <Image
-                                source={celebrationGif}
-                                style={styles.gif}
-                            />
+                            <Image source={celebrationGif} style={styles.gif} />
                         </View>
                     </TouchableOpacity>
                 )}
@@ -257,7 +328,7 @@ const styles = StyleSheet.create({
     },
     actionsContainer: {
         position: 'absolute',
-        top: 20,
+        top: 5,
         right: 15,
         flexDirection: 'column',
         gap: 12,
@@ -308,14 +379,17 @@ const styles = StyleSheet.create({
     textCard: {
         fontSize: 16,
         fontWeight: '500',
+        paddingRight: 30, // Garante que o texto não fique sob os ícones
+    },
+    progressRow: { // Adicionado para encapsular a barra e o texto
+        width: '100%',
+        marginTop: 10,
     },
     daysText: {
         fontSize: 14,
         fontWeight: '600',
         textAlign: "center",
-        position: 'absolute',
-        bottom: '15%',
-        left: '50%'
+        marginTop: 4, // Espaçamento entre a barra e o texto
     },
     newMetaContainer: {
         position: 'absolute',
@@ -367,15 +441,16 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     modalButton: {
-        backgroundColor: '#2980B9',
-        padding: 10,
+        padding: 12,
         borderRadius: 8,
         width: '100%',
         alignItems: 'center',
+        backgroundColor: '#2980B9',
     },
     modalButtonText: {
         color: 'white',
         fontWeight: 'bold',
+        fontSize: 16,
     },
     modalButtonCancel: {
         backgroundColor: '#fc445a',
@@ -423,5 +498,18 @@ const styles = StyleSheet.create({
         width: 400,
         height: 400,
     },
+    // ✅ NOVOS ESTILOS PARA O MODAL DE CONFIRMAÇÃO
+    modalBodyText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 20,
+        color: '#333'
+    },
+    modalButtonRow: {
+        flexDirection: 'column',
+        marginBottom:'5%',
+        gap:10,
+        justifyContent: 'space-between',
+        width: '50%',
+    },
 });
-

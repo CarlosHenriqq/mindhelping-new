@@ -231,13 +231,35 @@ export const countFeelingPDay = async () => {
  */
 export const saveLocalGoal = async ({ id, userPersonId, description, numberDays }) => {
     if (!db) throw new Error("Banco não inicializado");
-    const goalId = id || Crypto.randomUUID(); // Usa o ID da API ou gera um novo
+
+    // ... (todo o seu código de tratamento de variáveis continua o mesmo)
+    const goalId = String(id || Crypto.randomUUID()).substring(0, 36);
+    const userIdStr = String(userPersonId);
+    const descriptionStr = String(description);
+    const numberDaysInt = parseInt(numberDays, 10);
+    const daysCompleted = 0;
     const createdAt = new Date().toISOString();
-    return await db.runAsync(
-        `INSERT INTO goals (id, userPersonId, description, numberDays, daysCompleted, created_at)
-       VALUES (?, ?, ?, ?, ?, ?);`,
-        [goalId, userPersonId, description, numberDays, 0, createdAt]
-    );
+
+    // 🔴 ADICIONE ESTE LOG DE DEPURAÇÃO 🔴
+    const valuesToInsert = [goalId, userIdStr, descriptionStr, numberDaysInt, daysCompleted, createdAt];
+    console.log("--- DEBUG SQLITE ---");
+    console.log("Valores para inserir:", JSON.stringify(valuesToInsert, null, 2));
+    console.log("Tipos dos valores:", valuesToInsert.map(v => typeof v));
+    console.log("--------------------");
+
+    try {
+        await db.runAsync(
+            `INSERT OR REPLACE INTO goals 
+                 (id, userPersonId, description, numberDays, daysCompleted, created_at)
+             VALUES (?, ?, ?, ?, ?, ?);`,
+            valuesToInsert // Use a variável que criamos
+        );
+        console.log(`✅ Meta local salva com sucesso: ${goalId}`);
+        return goalId;
+    } catch (error) {
+        console.error("❌ Erro ao salvar meta local:", error);
+        throw error;
+    }
 };
 
 /**
@@ -311,5 +333,39 @@ export const deleteLocalGoal = async (metaId) => {
     } catch (error) {
         console.log(`❌ Erro ao deletar meta ${metaId} localmente:`, error);
         throw error;
+    }
+};
+
+
+// No seu arquivo de banco de dados (ex: database.js)
+
+// ... (suas outras funções como initDatabase, saveLocalGoal, etc.)
+
+/**
+ * ⚠️ FUNÇÃO DE RESET: Apaga todas as tabelas do banco de dados.
+ * Use apenas para desenvolvimento para limpar o banco e recomeçar do zero.
+ */
+export const resetDatabase = async () => {
+    if (!db) {
+        // Garante que o banco está aberto antes de tentar apagar
+        await initDatabase();
+    }
+    try {
+        console.log("⚠️  Iniciando reset completo do banco de dados...");
+        
+        // Apaga as tabelas uma por uma
+        await db.runAsync(`DROP TABLE IF EXISTS goals;`);
+        await db.runAsync(`DROP TABLE IF EXISTS goal_clicks;`);
+        await db.runAsync(`DROP TABLE IF EXISTS appointments;`);
+        await db.runAsync(`DROP TABLE IF EXISTS feelings_log;`);
+        
+        console.log("✅ Todas as tabelas foram removidas com sucesso.");
+
+        // Opcional, mas recomendado: Recria as tabelas imediatamente
+        console.log("Re-inicializando o banco para criar as tabelas com o schema correto...");
+        await initDatabase(); // Essa função vai rodar os `CREATE TABLE IF NOT EXISTS` novamente
+
+    } catch (error) {
+        console.error("❌ Erro ao resetar o banco de dados:", error);
     }
 };

@@ -9,5 +9,6 @@ export const ENDPOINTS = {
   GOAL_USER_DELETE: (goalId: string, personId: string, ) => `/goal/${goalId}/${personId}`,
   GOAL_USER_EXECUTE:(goalId: string, personId: string )=> `/goal/execute/${goalId}/${personId}`,
   GOAL_USER_UPDATE: (goalId: string, personId: string) => `/goal/update/${goalId}/${personId}`,
+  GOAL_USER_COUNTER: (goalId: string, personId: string) => `/goal/counter/${goalId}/${personId}`,
   USER:'/user'
 };

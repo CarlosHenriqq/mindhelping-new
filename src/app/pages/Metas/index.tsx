@@ -2,7 +2,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { Pencil, Trash2 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     Image,
     Modal,
@@ -54,7 +54,7 @@ const Metas = () => {
 
     const loadMetas = async () => {
         try {
-            const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+            const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
             const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`);
             const today = new Date().toISOString().split("T")[0];
             const goals = response.data.goals || [];
@@ -87,32 +87,48 @@ const Metas = () => {
         }
     };
 
-    // ✅ Marcar progresso de uma meta
     const handlePress = async (metaId) => {
+        console.log('Clicou')
         const today = new Date().toISOString().split("T")[0];
         let metaCompleted = false;
+
+        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
         const updatedMetas = await Promise.all(
             metas.map(async (meta) => {
                 if (meta.id === metaId && !meta.disabled) {
+                    try {
+                        // 🔄 PATCH para executar a meta
+                        // CÓDIGO CORRIGIDO
+                        await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`);
+                        console.log(`✅ Meta ${metaId} executada na API (PATCH)`);
+                    } catch (error) {
+                        console.error(`❌ Falha ao executar meta ${metaId} na API:`, error.message);
+                    }
+
+                    // Atualizar progresso local
                     const newDaysCompleted = meta.daysCompleted + 1;
                     await updateGoalProgress(meta.id, newDaysCompleted);
                     await setLastClickDate(meta.id, today);
+
                     if (newDaysCompleted >= meta.totalDias) {
                         metaCompleted = true;
                     }
+
                     return { ...meta, daysCompleted: newDaysCompleted, disabled: true };
                 }
                 return meta;
             })
         );
+
         setMetas(updatedMetas);
         if (metaCompleted) setShowCelebration(true);
     };
 
+
     // 🗑️ Excluir meta
     const excluirMeta = async (metaId) => {
-        const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
         try {
             await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`);
             console.log(`✅ Meta ${metaId} excluída da API com sucesso.`);
@@ -121,8 +137,7 @@ const Metas = () => {
                 console.log(`ℹ️ Meta ${metaId} não encontrada na API, provavelmente era uma meta local.`);
             } else {
                 console.error("❌ Falha ao excluir meta da API:", error.message);
-                alert("Não foi possível excluir a meta. Verifique sua conexão e tente novamente.");
-                return;
+
             }
         }
         try {
@@ -147,7 +162,7 @@ const Metas = () => {
     const addNewGoal = async () => {
         const description = novaMetaText.trim();
         const numberDays = Number(numeroDias);
-        const userPersonId = "03cba052-ad35-4bf8-b917-5a2f404a07c4";
+        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
         if (!description || !numberDays) {
             alert("Preencha todos os campos!");
@@ -328,7 +343,7 @@ const styles = StyleSheet.create({
     },
     actionsContainer: {
         position: 'absolute',
-        top: 5,
+        top: 20,
         right: 15,
         flexDirection: 'column',
         gap: 12,
@@ -379,17 +394,18 @@ const styles = StyleSheet.create({
     textCard: {
         fontSize: 16,
         fontWeight: '500',
-        paddingRight: 30, // Garante que o texto não fique sob os ícones
+        paddingRight: 30,
+        marginBottom: '5%', // Garante que o texto não fique sob os ícones
     },
     progressRow: { // Adicionado para encapsular a barra e o texto
         width: '100%',
-        marginTop: 10,
+        marginTop: 0,
     },
     daysText: {
         fontSize: 14,
         fontWeight: '600',
         textAlign: "center",
-        marginTop: 4, // Espaçamento entre a barra e o texto
+        bottom: 19 // Espaçamento entre a barra e o texto
     },
     newMetaContainer: {
         position: 'absolute',
@@ -507,8 +523,8 @@ const styles = StyleSheet.create({
     },
     modalButtonRow: {
         flexDirection: 'column',
-        marginBottom:'5%',
-        gap:10,
+        marginBottom: '5%',
+        gap: 10,
         justifyContent: 'space-between',
         width: '50%',
     },

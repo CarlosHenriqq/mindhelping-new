@@ -16,6 +16,7 @@ export default function Layout() {
   useEffect(() => {
     const init = async () => {
       await initDatabase(); // inicializa o banco
+      
       await addSampleAppointment(); // opcional: adiciona consulta de exemplo
       setDbReady(true); // banco pronto
     };

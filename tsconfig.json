@@ -6,7 +6,8 @@
       "@/*": [
         "./src/app*"
       ]
-    }
+    },
+     "jsx": "react-native",   
   },
   "include": [
     "**/*.ts",

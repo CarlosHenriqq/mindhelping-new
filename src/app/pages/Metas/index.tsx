@@ -1,5 +1,4 @@
 import { useFocusEffect } from "@react-navigation/native";
-import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
@@ -11,19 +10,21 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 
 import ProgressBar from "../../../../components/progessBar";
-import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
 import {
     deleteLocalGoal,
     getLastClickDate,
     getLocalGoals,
     saveLocalGoal,
     setLastClickDate,
-    updateGoalProgress
+    updateGoalProgress,
 } from "../../../services/database";
+import { safeRequest } from "../../../services/safeRequest"; // ✅ novo
+
+import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
 
 const celebrationGif = require("../../../../assets/animations/celebration.gif");
 
@@ -35,6 +36,8 @@ const Metas = () => {
     const [showCelebration, setShowCelebration] = useState(false);
     const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
     const [goalToDeleteId, setGoalToDeleteId] = useState(null);
+
+    const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
     // 🔄 Carregar metas sempre que a tela receber foco
     useFocusEffect(
@@ -52,12 +55,16 @@ const Metas = () => {
         return () => clearTimeout(timer);
     }, [showCelebration]);
 
+    // 🔽 Carrega metas (API ou local)
     const loadMetas = async () => {
         try {
-            const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
-            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`);
+            const response = await safeRequest({
+                method: "get",
+                url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`,
+            });
+
             const today = new Date().toISOString().split("T")[0];
-            const goals = response.data.goals || [];
+            const goals = response?.data?.goals || [];
 
             const mappedMetas = await Promise.all(
                 goals.map(async (goal) => {
@@ -71,9 +78,10 @@ const Metas = () => {
                     };
                 })
             );
+
             setMetas(mappedMetas);
         } catch (error) {
-            console.log("❌ Erro ao carregar metas da API:", error.message);
+            console.log("⚠️ Sem internet, carregando metas locais...");
             const localGoals = await getLocalGoals();
             setMetas(
                 localGoals.map((goal) => ({
@@ -87,26 +95,21 @@ const Metas = () => {
         }
     };
 
+    // 📌 Marcar progresso de uma meta
     const handlePress = async (metaId) => {
-        console.log('Clicou')
         const today = new Date().toISOString().split("T")[0];
         let metaCompleted = false;
-
-        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
         const updatedMetas = await Promise.all(
             metas.map(async (meta) => {
                 if (meta.id === metaId && !meta.disabled) {
-                    try {
-                        // 🔄 PATCH para executar a meta
-                        // CÓDIGO CORRIGIDO
-                        await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`);
-                        console.log(`✅ Meta ${metaId} executada na API (PATCH)`);
-                    } catch (error) {
-                        console.error(`❌ Falha ao executar meta ${metaId} na API:`, error.message);
-                    }
+                    // 🔄 Salva no servidor (ou pending_requests)
+                    await safeRequest({
+                        method: "patch",
+                        url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`,
+                    });
 
-                    // Atualizar progresso local
+                    // Atualiza local
                     const newDaysCompleted = meta.daysCompleted + 1;
                     await updateGoalProgress(meta.id, newDaysCompleted);
                     await setLastClickDate(meta.id, today);
@@ -125,27 +128,14 @@ const Metas = () => {
         if (metaCompleted) setShowCelebration(true);
     };
 
-
     // 🗑️ Excluir meta
     const excluirMeta = async (metaId) => {
-        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
-        try {
-            await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`);
-            console.log(`✅ Meta ${metaId} excluída da API com sucesso.`);
-        } catch (error) {
-            if (error.response && error.response.status === 404) {
-                console.log(`ℹ️ Meta ${metaId} não encontrada na API, provavelmente era uma meta local.`);
-            } else {
-                console.error("❌ Falha ao excluir meta da API:", error.message);
+        await safeRequest({
+            method: "delete",
+            url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`,
+        });
 
-            }
-        }
-        try {
-            await deleteLocalGoal(metaId);
-            console.log(`✅ Meta ${metaId} excluída do SQLite com sucesso.`);
-        } catch (error) {
-            console.error("❌ Falha ao excluir meta do banco de dados local:", error.message);
-        }
+        await deleteLocalGoal(metaId);
         setMetas((prevMetas) => prevMetas.filter((meta) => meta.id !== metaId));
     };
 
@@ -162,29 +152,31 @@ const Metas = () => {
     const addNewGoal = async () => {
         const description = novaMetaText.trim();
         const numberDays = Number(numeroDias);
-        const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
         if (!description || !numberDays) {
             alert("Preencha todos os campos!");
             return;
         }
 
-        try {
-            await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
-                userPersonId,
-                description,
-                numberDays,
-            });
-        } catch (error) {
-            console.log("⚠️ Erro de rede/API, salvando apenas no SQLite:", error.message);
-        }
+        // Salva primeiro no local
+        const goalId = await saveLocalGoal({
+            userPersonId,
+            description,
+            numberDays,
+        });
 
-        await saveLocalGoal({ userPersonId, description, numberDays });
+        // E agenda para API
+        await safeRequest({
+            method: "post",
+            url: `${API_BASE_URL}${ENDPOINTS.GOAL}`,
+            data: { id: goalId, userPersonId, description, numberDays },
+        });
+
         await loadMetas();
 
         setNovaMetaText("");
         setNumeroDias("");
-        setModalVisible(false); // ✅ CORRIGIDO: Movido para o final
+        setModalVisible(false);
     };
 
     return (
@@ -286,8 +278,8 @@ const Metas = () => {
                 <Modal
                     animationType="fade"
                     transparent={true}
-                    visible={showConfirmDeleteModal} // ✅ CORRIGIDO
-                    onRequestClose={() => setShowConfirmDeleteModal(false)} // ✅ CORRIGIDO
+                    visible={showConfirmDeleteModal}
+                    onRequestClose={() => setShowConfirmDeleteModal(false)}
                 >
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
@@ -297,13 +289,13 @@ const Metas = () => {
                             </Text>
                             <View style={styles.modalButtonRow}>
                                 <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: '#6c757d' }]}
+                                    style={[styles.modalButton, { backgroundColor: "#6c757d" }]}
                                     onPress={() => setShowConfirmDeleteModal(false)}
                                 >
                                     <Text style={styles.modalButtonText}>Cancelar</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: '#dc3545' }]}
+                                    style={[styles.modalButton, { backgroundColor: "#dc3545" }]}
                                     onPress={handleConfirmDelete}
                                 >
                                     <Text style={styles.modalButtonText}>Excluir</Text>
@@ -332,6 +324,7 @@ const Metas = () => {
 };
 
 export default Metas;
+
 
 const styles = StyleSheet.create({
     background: {

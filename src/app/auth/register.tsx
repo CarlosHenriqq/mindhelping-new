@@ -1,7 +1,7 @@
 import { useFocusEffect, useNavigation, } from '@react-navigation/native';
 import axios from 'axios';
 import { router } from 'expo-router';
-import { Calendar, ChevronDown, ChevronUp, IdCard, Lock, Mail, Phone, User, XCircleIcon } from 'lucide-react-native';
+import { Calendar, ChevronDown, ChevronUp, Lock, Mail, User, XCircleIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
     ImageBackground,
@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { API_BASE_URL, ENDPOINTS } from '../../config/api';
-import { isValidCPF, isValidEmail, isValidPassword, isValidPhone } from '../../validators/validator';
+import { isValidEmail, isValidPassword } from '../../validators/validator';
 
 
 
@@ -52,30 +52,11 @@ export default function SignUp() {
             newErrors.birthDate = '';
         }
 
-        if (!cpf) {
-            newErrors.cpf = 'CPF é obrigatório';
-            isValid = false;
-        } else if (!isValidCPF(cpf)) {
-            newErrors.cpf = 'CPF inválido';
-            isValid = false;
-        } else {
-            newErrors.cpf = '';
-        }
-        if (!gender) {
+        if (!value) {
             newErrors.gender = 'Identidade de gênero é obrigatória';
             isValid = false;
         } else {
             newErrors.gender = '';
-        }
-
-        if (!phone) {
-            newErrors.phone = 'Telefone é obrigatório';
-            isValid = false;
-        } else if (!isValidPhone(phone)) {
-            newErrors.phone = 'Telefone inválido';
-            isValid = false;
-        } else {
-            newErrors.phone = '';
         }
 
         if (!email) {
@@ -98,73 +79,49 @@ export default function SignUp() {
             newErrors.password = '';
         }
 
-        if (!cep) {
-            newErrors.cep = 'CEP é obrigatório';
-            isValid = false;
-        } else {
-            newErrors.cep = '';
-        }
-
-        if (!numero) {
-            newErrors.numero = 'Número é obrigatório';
-            isValid = false;
-        } else {
-            newErrors.numero = '';
-        }
-
-        // Continue para os outros campos...
-
         setErrors(newErrors);
         return isValid;
     };
 
 
-    async function registerUser(formData) {
-        const {
-            name,
-            birth_date,
-            cpf,
-            address,
-            neighborhood,
-            number,
-            complement,
-            cepUser,
-            city,
-            uf,
-            phone,
-            email,
-            password,
-            gender
-        } = formData;
+
+    async function registerUser() {
+        console.log("➡️ registerUser foi chamado!");
+
+        if (!validateForm()) {
+            console.log("❌ Formulário inválido, barrando request");
+            return;
+        } // chama a função, não só referencia
 
         const payload = {
-            name: name ?? null,
-            birth_date: birth_date ?? null,
-            cpf: cpf ?? null,
-            address: address ?? null,
-            neighborhood: neighborhood ?? null,
-            number: number ?? null,
-            complement: complement ?? null,
-            cepUser: cepUser ?? null,
-            city: city ?? null,
-            uf: uf ?? null,
-            phone: phone ?? null,
-            email: email ?? null,
-            password: password ?? null,
-            gender: gender ?? null
+            name,
+            birth_date: birthDate, // já no formato que você está coletando
+            cpf: cpf || "000.000.000-00", // placeholder até atualizar no perfil
+            address: endereco || "N/A",
+            neighborhood: bairro || "N/A",
+            number: numero || 0,
+            complement: "",
+            cepUser: cep || "00000-000",
+            city: cidade || "N/A",
+            uf: uf || "N/A",
+            phone: phone || "(00) 00000-0000",
+            email,
+            password,
+            gender: value, // pega o selecionado no DropDownPicker
         };
-        if (validateForm) {
 
-            try {
-                const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.USER}`, payload);
-                console.log("✅ Usuário registrado com sucesso:", response.data);
-                return response.data;
-            } catch (error) {
-                console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
-                throw error;
-            }
+        try {
+            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.USER}`, payload);
+            console.log("✅ Usuário registrado com sucesso:", response.data);
+
+            // pode jogar direto pra tela de login depois
+            router.replace("./login");
+        } catch (error) {
+            console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
+            alert("Erro ao cadastrar. Tente novamente.");
         }
     }
+
 
 
 
@@ -227,28 +184,7 @@ export default function SignUp() {
             },
             error: errors.birthDate
         },
-        {
-            placeholder: 'CPF',
-            key: 'cpf',
-            icon: <IdCard color="#3386BC" size={20} />,
-            keyboardType: 'numeric',
-            maxLength: 14,
-            value: cpf,
-            onChangeText: (text: string) => {
-                let cpfCleaned = text.replace(/\D/g, '');
 
-                if (cpfCleaned.length <= 3) {
-                    setCPF(cpfCleaned);
-                } else if (cpfCleaned.length <= 6) {
-                    setCPF(`${cpfCleaned.slice(0, 3)}.${cpfCleaned.slice(3)}`);
-                } else if (cpfCleaned.length <= 9) {
-                    setCPF(`${cpfCleaned.slice(0, 3)}.${cpfCleaned.slice(3, 6)}.${cpfCleaned.slice(6)}`);
-                } else {
-                    setCPF(`${cpfCleaned.slice(0, 3)}.${cpfCleaned.slice(3, 6)}.${cpfCleaned.slice(6, 9)}-${cpfCleaned.slice(9, 11)}`);
-                }
-            },
-            error: errors.cpf
-        },
         {
             key: 'genderPicker',
             render: () => (
@@ -293,33 +229,7 @@ export default function SignUp() {
                 </View>
             )
         },
-        {
-            placeholder: 'Telefone',
-            key: 'phone',
-            icon: <Phone color="#3386BC" size={20} />,
-            keyboardType: 'numeric',
-            fullWidth: true,
-            value: phone,
-            onChangeText: (text: string) => {
-                let cleaned = text.replace(/\D/g, ''); // Remove tudo que não for número
 
-                if (cleaned.length <= 2) {
-                    // Apenas DDD
-                    setPhone(`(${cleaned}`);
-                } else if (cleaned.length <= 6) {
-                    // DDD + começo do número
-                    setPhone(`(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`);
-                } else if (cleaned.length <= 10) {
-                    // Número fixo: (11) 1234-5678
-                    setPhone(`(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 6)}-${cleaned.slice(6)}`);
-                } else {
-                    // Celular com 9 dígitos: (11) 91234-5678
-                    setPhone(`(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`);
-                }
-            },
-            error: errors.phone
-
-        },
         {
             placeholder: 'Endereço de e-mail',
             key: 'email',

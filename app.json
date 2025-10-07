@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mindHelping",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -39,6 +43,12 @@
       "icon": "./assets/icon.png",
       "color": "#2980B9",
       "androidMode": "default"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5bf5c476-38cd-4173-8256-2072eb6e5c89"
+      }
     }
   }
 }

@@ -1,19 +1,47 @@
+import axios from 'axios';
 import Checkbox from 'expo-checkbox';
 import { useRouter } from "expo-router";
 import { LockKeyhole, User } from 'lucide-react-native';
 import { useState } from 'react';
-import { Dimensions, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Dimensions, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Logo from '../../../assets/logo.svg';
 import Mascote from '../../../assets/mascote.svg';
+import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 
 const { width, height } = Dimensions.get('window');
 
 export default function Login() {
     const router = useRouter();
     const [toggleCheck, setToggleCheck] = useState(false);
+    const [login, setLogin] = useState('');
+    const [senha, setSenha] = useState('');
+    const [loading, setLoading] = useState(false);
 
-   
+    async function handleLogin() {
+        if (!login || !senha) {
+            Alert.alert("Aviso", "Preencha e-mail e senha");
+            return;
+        }
 
+        try {
+            setLoading(true);
+
+            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.LOGIN}`, {
+                email: login,
+                password: senha
+            });
+
+            console.log('ENTROU', response.data);
+
+            // Aqui você pode salvar token ou redirecionar
+            router.push('/pages/Home'); // exemplo
+        } catch (error: any) {
+            console.log(error);
+            Alert.alert("Erro", "Falha ao realizar login. Verifique suas credenciais.");
+        } finally {
+            setLoading(false);
+        }
+    }
 
     return (
         <ImageBackground
@@ -37,8 +65,11 @@ export default function Login() {
                         <User color='#3386bC' size={20} style={styles.icon} />
                         <TextInput
                             placeholder='E-mail'
+                            onChangeText={setLogin}
                             style={styles.input}
                             placeholderTextColor="#3386BC"
+                            autoCapitalize="none"
+                            keyboardType="email-address"
                         />
                     </View>
 
@@ -46,6 +77,7 @@ export default function Login() {
                         <LockKeyhole color='#3386bC' size={20} style={styles.icon} />
                         <TextInput
                             placeholder='Senha'
+                            onChangeText={setSenha}
                             secureTextEntry
                             style={styles.input}
                             placeholderTextColor="#3386BC"
@@ -56,7 +88,7 @@ export default function Login() {
                         <View style={styles.checkboxContainer}>
                             <Checkbox
                                 value={toggleCheck}
-                                onValueChange={(newValue) => setToggleCheck(newValue)}
+                                onValueChange={setToggleCheck}
                                 color={toggleCheck ? '#3386BC' : undefined}
                                 style={styles.check}
                             />
@@ -67,8 +99,12 @@ export default function Login() {
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity onPress={() => router.push('/pages/Home')} style={styles.button}>
-                        <Text style={styles.buttonText}>Entrar</Text>
+                    <TouchableOpacity
+                        onPress={handleLogin}
+                        style={[styles.button, loading && { opacity: 0.7 }]}
+                        disabled={loading}
+                    >
+                        {loading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>Entrar</Text>}
                     </TouchableOpacity>
 
                     <View style={styles.signupContainer}>
@@ -94,12 +130,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 30,
         marginBottom: '10%'
-
-    },
-    imagem: {
-        width: width * 1.0,
-        height: '40%',
-        
     },
     titulo: {
         fontSize: 24,

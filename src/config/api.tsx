@@ -1,5 +1,5 @@
 // src/config/api.js
-export const API_BASE_URL = 'http://10.11.185.214:3334';
+export const API_BASE_URL = 'http://10.11.185.214:3333';
 
 export const ENDPOINTS = {
   PROFESSIONALS: '/professionals',
@@ -10,5 +10,9 @@ export const ENDPOINTS = {
   GOAL_USER_EXECUTE:(goalId: string, personId: string )=> `/goal/execute/${goalId}/${personId}`,
   GOAL_USER_UPDATE: (goalId: string, personId: string) => `/goal/update/${goalId}/${personId}`,
   GOAL_USER_COUNTER: (goalId: string, personId: string) => `/goal/counter/${goalId}/${personId}`,
-  USER:'/user'
+  SCHEDULES_GET: (professionalId: string) => `/schedules/${professionalId}`,
+  HOUR_GET: (scheduleId:string) => `/hourlies/${scheduleId}`,
+  SCHEDULING: '/schedulings',
+  USER:'/user',
+  LOGIN: '/persons/authenticate'
 };

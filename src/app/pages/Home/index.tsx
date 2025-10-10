@@ -1,10 +1,12 @@
+import { useFocusEffect } from '@react-navigation/native';
+import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
-import { insertFeelingInDB, mostrarNotas, updateLastFeelingNote } from '../../../services/database'; // <-- suas funções do banco
+import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import {
     goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification
 } from '../../../services/notificationService';
@@ -51,6 +53,7 @@ const relaxationTips = [
     }
 ];
 
+
 export default function Home() {
     const [feelings] = useState([
         { text: "FELIZ", image: require('../../../../assets/images/slide/feliz.png') },
@@ -58,8 +61,11 @@ export default function Home() {
         { text: "RAIVA", image: require('../../../../assets/images/slide/raiva.png') },
         { text: "ANSIOSO", image: require('../../../../assets/images/slide/ansioso.png') },
         { text: "TEDIO", image: require('../../../../assets/images/slide/tedio.png') },
-        { text: "NEUTRO", image: require('../../../../assets/images/slide/indeciso.png') },
+        { text: "NÃO_SEI_DIZER", image: require('../../../../assets/images/slide/indeciso.png') },
     ]);
+
+    const [userName, setUserName] = useState('Carlos');
+    const [userId, setUserId] = useState('4765ab60-785f-4215-942e-22d9535bd877');
 
     const [modalSelected, setModalSelect] = useState(false);
     const [inputText, setInputText] = useState('');
@@ -68,65 +74,105 @@ export default function Home() {
     const [modalContent, setModalContent] = useState({ title: '', tips: [] });
     const [nextAppointment, setNextAppointment] = useState(null);
 
-    const dadosDaConsulta = {
-        id: 'consulta-alessandra-15-10-2024',
-        professionalName: 'Dra. Alessandra',
-        date: new Date('2025-10-15T16:00:00'),
-        title: 'Psicóloga',
-        phone: '18 99756-2102',
-        email: 'alessandra.psi@gmail.com',
-        address: 'Rua das Flores, 123, Birigui - SP'
-    };
+    const fetchNextAppointment = async () => {
+        const userId = '4765ab60-785f-4215-942e-22d9535bd877';
 
-    useEffect(() => {
-        scheduleDailyReminderNotification();
-        goalsWeeklyNotification();
-        scheduleWeeklyReportNotification();
-        scheduleAppointmentReminder(dadosDaConsulta);
-        setNextAppointment(dadosDaConsulta);
-        visualizarNotas();
-        
-
-    }, []);
-
-    // --- Função para registrar sentimento no banco ---
-    const registerFeelingWithTime = async (feeling) => {
-        const currentTime = new Date().toISOString().split('T')[1].substring(0, 5);
-        const today = new Date().toISOString().split('T')[0];
+        if (!userId) {
+            console.log("ID do usuário não encontrado. Não é possível buscar agendamento.");
+            return null;
+        }
 
         try {
-            await insertFeelingInDB({
-                date: today,
-                time: currentTime,
-                feeling
+            const response = await fetch(`${API_BASE_URL}${ENDPOINTS.SCHEDULING_USER(userId)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // 'Authorization': `Bearer ${token}`, // se precisar autenticação
+                },
             });
-            console.log(`Sentimento registrado às ${currentTime}: ${feeling}`);
-            setModalSelect(true);
-        } catch (e) {
-            console.log("Erro ao registrar o sentimento: ", e);
-        }
-    };
-    const visualizarNotas = async () => {
-        const notas = await mostrarNotas();
-        notas.forEach((item, index) => {
-            
-        });
-    };
-    // --- Função para salvar nota no último sentimento ---
-    const salvarTexto = async () => {
-        if (inputText.trim()) {
-            try {
-                await updateLastFeelingNote(inputText);
-                
-                setInputText('');
-                setModalSelect(false);
 
-            } catch (e) {
-                console.log("Erro ao salvar a nota do sentimento: ", e);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    console.log("Nenhum agendamento futuro encontrado para este usuário.");
+                    return null;
+                }
+                throw new Error(`Erro na API: Status ${response.status}`);
             }
-        } else {
-            setModalSelect(false);
+
+            const apiResponse = await response.json();
+
+            if (apiResponse && apiResponse.schedulingDetails) {
+                const details = apiResponse.schedulingDetails;
+                return {
+                    id: details.id,
+                    professionalName: details.nameProfessional,
+                    date: new Date(details.date),
+                    title: 'Psicólogo(a)',
+                    phone: details.phoneProfessional,
+                    email: details.emailProfessional,
+                    address: `${details.address.street}, ${details.address.city} - ${details.address.uf}`,
+                };
+            }
+
+            return null;
+        } catch (error) {
+            console.error("Erro ao buscar agendamento da API:", error);
+            return null;
         }
+    };
+
+
+    useFocusEffect(
+        useCallback(() => {
+            const loadAppointmentData = async () => {
+                const appointmentData = await fetchNextAppointment();
+                setNextAppointment(appointmentData);
+                if (appointmentData) {
+                    scheduleAppointmentReminder(appointmentData);
+                }
+            };
+
+            // Notificações gerais (executam apenas uma vez por foco)
+            scheduleDailyReminderNotification();
+            goalsWeeklyNotification();
+            scheduleWeeklyReportNotification();
+
+            // Busca o agendamento sempre que a tela for focada
+            loadAppointmentData();
+
+            // Retorno opcional (se quiser limpar algo quando sai da tela)
+            return () => {
+                console.log("Saindo da tela Home");
+            };
+        }, [userId])
+    );
+
+
+    // --- Função modificada para não usar o banco de dados ---
+    const registerFeelingWithTime = (feeling:string) => {
+        console.log(`Sentimento selecionado: ${feeling}`);
+        setSelectedFeelingIndex(feelings.findIndex(f => f.text === feeling)); // guarda o índice do sentimento
+        setModalSelect(true);
+    };
+
+    // --- Função desativada ---
+    const salvarTexto = async () => {
+        const feeling = feelings[selectedFeelingIndex].text;
+        const motiveToSend = inputText.trim() ? inputText : "sem motivo";
+
+        try {
+            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`, {
+                description: feeling,
+                motive: motiveToSend
+            });
+
+            console.log("Sentimento registrado com sucesso:", response.data);
+        } catch (error) {
+            console.error("Erro ao registrar sentimento:", error.response?.data || error.message);
+        }
+
+        setInputText('');
+        setModalSelect(false);
     };
 
     const openTipsModal = (tipData) => {
@@ -142,7 +188,7 @@ export default function Home() {
                         <View style={styles.feeling}>
                             <View style={styles.containerUser}>
                                 <View style={styles.textContainer}>
-                                    <Text style={styles.userText}>Oi Carlos,</Text>
+                                    <Text style={styles.userText}>Oi {userName},</Text>
                                     <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
                                 </View>
                                 <TouchableOpacity onPress={() => router.replace('/pages/Perfil')}>
@@ -200,11 +246,7 @@ export default function Home() {
                                         </View>
                                         <View>
                                             <Text style={styles.dadosLocConsulta}>{nextAppointment.address}</Text>
-                                            <View style={styles.maps}>
-                                                <TouchableOpacity>
-                                                    <Text style={{ fontWeight: 'normal' }}>Abrir através do Google Maps</Text>
-                                                </TouchableOpacity>
-                                            </View>
+
                                         </View>
                                     </>
                                 ) : (
@@ -274,6 +316,8 @@ export default function Home() {
         </View>
     );
 }
+
+
 
 const styles = StyleSheet.create({
     background: {
@@ -350,7 +394,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold'
     },
-    // --- ESTILOS ADICIONADOS ---
     contatoProf: {
         fontWeight: 'bold',
     },
@@ -382,7 +425,6 @@ const styles = StyleSheet.create({
     maps: {
         flexDirection: 'row',
     },
-    // --- FIM DOS ESTILOS ADICIONADOS ---
     dadosLocConsulta: {
         fontWeight: 'bold',
         marginBottom: 5

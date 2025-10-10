@@ -1,4 +1,5 @@
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import axios from 'axios';
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
@@ -6,16 +7,16 @@ import React, { useState } from "react";
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import FeelingsChart from "../../../../components/feelingCharts";
-import { countFeelingPDay } from '../../../services/database';
+import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 
 const Analystic = () => {
   const navigation = useNavigation();
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedFeeling, setSelectedFeeling] = useState('');
+  const [selectedDay, setSelectedDay] = useState(new Date());
   const [feelingDataForChart, setFeelingDataForChart] = useState([]);
   const [maxValue, setMaxValue] = useState(1);
   const [visibleDate, setVisibleDate] = useState(new Date());
+  const [feelingsList, setFeelingsList] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false); // Modal para motivos
 
   const feelingColors = {
     FELIZ: '#edd892',
@@ -31,29 +32,43 @@ const Analystic = () => {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
+  const fetchFeelings = async (date) => {
+    const userId = '4765ab60-785f-4215-942e-22d9535bd877';
+    if (!userId) return;
+
+    const formattedDate = date.toISOString().split('T')[0];
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`, {
+        params: { startDay: formattedDate, endDay: formattedDate }
+      });
+
+      if (response.data && response.data.feelings) {
+        const feelings = response.data.feelings;
+        setFeelingsList(feelings);
+
+        const counts = { FELIZ: 0, TRISTE: 0, RAIVA: 0, ANSIOSO: 0, TEDIO: 0, NEUTRO: 0 };
+        feelings.forEach(f => { if (counts[f.description] !== undefined) counts[f.description]++; });
+
+        const chartData = Object.keys(counts).map(key => ({
+          description: key,
+          value: counts[key],
+          color: feelingColors[key]
+        }));
+
+        setFeelingDataForChart(chartData);
+        setMaxValue(Math.max(...chartData.map(c => c.value), 1));
+      }
+    } catch (error) {
+      console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
+    }
+  };
+
   useFocusEffect(
     React.useCallback(() => {
-      const fetchFeelingsFromDB = async () => {
-        try {
-          const result = await countFeelingPDay();
-
-          const chartData = result.map(item => ({
-            label: item.feeling.charAt(0).toUpperCase() + item.feeling.slice(1).toLowerCase(),
-            value: item.total,
-            color: feelingColors[item.feeling.toUpperCase()] || '#A9A9AA'
-          }));
-
-          const total = chartData.reduce((sum, item) => sum + item.value, 0);
-          setFeelingDataForChart(chartData);
-          setMaxValue(total > 0 ? total : 1);
-        } catch (error) {
-          console.error("Erro ao carregar dados do gráfico:", error);
-        }
-      };
-
-      fetchFeelingsFromDB();
       StatusBar.setBackgroundColor('#A3D8F4');
-    }, [])
+      fetchFeelings(selectedDay);
+    }, [selectedDay])
   );
 
   return (
@@ -76,51 +91,57 @@ const Analystic = () => {
             }}
             style={{ width: 350 }}
             onDayPress={(day) => {
-              setSelectedDay(day.day);
-              setSelectedFeeling("Função de visualização por dia ainda não implementada com SQLite.");
-              setModalVisible(true);
+              const pressedDate = new Date(day.dateString);
+              setSelectedDay(pressedDate);
+              fetchFeelings(pressedDate);
             }}
-            onMonthChange={(month) => {
-              setVisibleDate(new Date(month.dateString));
-            }}
+            onMonthChange={(month) => { setVisibleDate(new Date(month.dateString)); }}
           />
         </View>
 
         <View style={styles.chartContainer}>
           <Text style={styles.chartTitle}>Sentimentos no dia</Text>
           <FeelingsChart data={feelingDataForChart} maxValue={maxValue} layout="horizontal" />
+
+          <TouchableOpacity
+            style={styles.buttonSeeMotives}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.buttonText}>Ver motivos</Text>
+          </TouchableOpacity>
         </View>
 
         <Modal
-          animationType="slide"
-          transparent={true}
           visible={modalVisible}
-          onRequestClose={() => setModalVisible(!modalVisible)}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setModalVisible(false)}
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalView}>
-              <Text style={styles.modalTitleText}>Dia {selectedDay}</Text>
-              <ScrollView style={{ maxHeight: 200 }}>
-                <Text style={styles.modalText}>{selectedFeeling}</Text>
+              <Text style={styles.modalTitle}>Motivos dos sentimentos</Text>
+              <ScrollView style={{ maxHeight: 300, width: '100%' }}>
+                {feelingsList.length > 0 ? (
+                  feelingsList.map((f, index) => (
+                    <View key={index} style={styles.motiveItem}>
+                      <Text style={{ color: feelingColors[f.description], fontWeight: 'bold', fontSize: 16 }}>
+                        {f.description}
+                      </Text>
+                      <Text style={{ fontSize: 14, marginTop: 2 }}>{f.motive}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ textAlign: 'center', marginTop: 10 }}>Nenhum sentimento registrado nesse dia.</Text>
+                )}
               </ScrollView>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonClose]}
-                onPress={() => setModalVisible(!modalVisible)}
-              >
-                <Text style={styles.textStyle}>Fechar</Text>
+              <TouchableOpacity style={styles.buttonCloseModal} onPress={() => setModalVisible(false)}>
+                <Text style={styles.buttonText}>Fechar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        <TouchableOpacity style={{
-          height: 40, width: '60%', alignItems: 'center', justifyContent: 'center', marginTop: '2%', borderRadius: 20, borderWidth: 1, alignSelf: 'center', backgroundColor: '#ffffff', borderColor: 'transparent',
-          shadowColor: '#000000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          elevation: 2,
-        }} onPress={() => router.replace('/pages/Charts/Month')}>
+        <TouchableOpacity style={styles.buttonMonthlyReport} onPress={() => router.replace('/pages/Charts/Month')}>
           <Text style={{ fontFamily: "Nunito", fontSize: 18 }}>Acessar relatório mensal</Text>
         </TouchableOpacity>
 
@@ -132,110 +153,146 @@ const Analystic = () => {
 
 export default Analystic;
 
-
-
 const styles = StyleSheet.create({
-    background: {
-        flex: 1
-    },
-    container: {
-        flex: 1,
-        backgroundColor: 'transparent',
+  background: {
+    flex: 1
+  },
+  container: {
+    flex: 1,
+    backgroundColor: 'transparent',
 
-    },
-    Seta: {
-        alignItems: 'center',
-        flexDirection: 'row',
-        gap: 5,
-        marginTop: StatusBar.currentHeight || '9%',
-    },
-    botaoVoltar: {
-        padding: 10,
-        borderRadius: 5,
-        left: 10,
-    },
-    calendarContainer: {
-        backgroundColor: '#FFFFFF',
-        padding: '2%',
-        borderRadius: 20,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-        margin: 10
-    },
-    calendarHeaderText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#000',
-        textAlign: 'center',
-        fontFamily: 'Nunito',
-        bottom: 3
-    },
-    chartContainer: {
-        flex: 1,
-        backgroundColor: '#ffffff',
-        borderRadius: 20,
-        padding: 10,
-        margin: '2%',
-    },
-    chartTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#000000',
-        fontFamily: 'Nunito',
-        textAlign: 'center',
-        marginTop:'3%'
-    },
-    modalContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    modalView: {
-        margin: 20,
-        backgroundColor: 'white',
-        borderRadius: 20,
-        padding: 25,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 4,
-        elevation: 5,
-        width: '80%',
-    },
-    button: {
-        borderRadius: 20,
-        padding: 10,
-        elevation: 2,
-        minWidth: 100,
-        marginTop: 15,
-    },
-    buttonClose: {
-        backgroundColor: '#27361f',
-    },
-    textStyle: {
-        color: 'white',
-        fontWeight: 'bold',
-        textAlign: 'center',
-        fontFamily: 'Nunito'
-    },
-    modalTitleText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 15,
-        textAlign: 'center',
-        fontFamily: 'Nunito'
-    },
-    modalText: {
-        marginBottom: 15,
-        textAlign: 'center',
-        fontSize: 16,
-        fontFamily: 'Nunito',
-
-    },
+  },
+  Seta: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: StatusBar.currentHeight || '9%',
+  },
+  botaoVoltar: {
+    padding: 10,
+    borderRadius: 5,
+    left: 10,
+  },
+  calendarContainer: {
+    backgroundColor: '#FFFFFF',
+    padding: '2%',
+    borderRadius: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    margin: 10
+  },
+  calendarHeaderText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    textAlign: 'center',
+    fontFamily: 'Nunito',
+    bottom: 3
+  },
+  chartContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 10,
+    margin: '2%',
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000000',
+    fontFamily: 'Nunito',
+    textAlign: 'center',
+    marginTop: '3%'
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 25,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '80%',
+  },
+  button: {
+    borderRadius: 20,
+    padding: 10,
+    elevation: 2,
+    minWidth: 100,
+    marginTop: 15,
+  },
+  buttonClose: {
+    backgroundColor: '#27361f',
+  },
+  buttonSeeMotives: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#454849ff',
+    alignSelf: 'center'
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontFamily: 'Nunito',
+    textAlign: 'center'
+  },
+  textStyle: {
+    color: 'white',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    fontFamily: 'Nunito'
+  },
+  modalTitleText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+    fontFamily: 'Nunito'
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    fontSize: 16,
+    fontFamily: 'Nunito',
+  },
+  buttonCloseModal: {
+    marginTop: 15,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#454849ff',
+    width: 100,
+    alignItems: 'center',
+    alignSelf: 'center'
+  },
+  buttonMonthlyReport: {
+    height: 40,
+    width: '60%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '2%',
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 2
+  },
 });

@@ -1,8 +1,10 @@
 import { useFocusEffect } from "@react-navigation/native";
+import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { Pencil, Trash2 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
+    ActivityIndicator,
     Image,
     Modal,
     ScrollView,
@@ -12,41 +14,39 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-
 import ProgressBar from "../../../../components/progessBar";
-import {
-    deleteLocalGoal,
-    getLastClickDate,
-    getLocalGoals,
-    saveLocalGoal,
-    setLastClickDate,
-    updateGoalProgress,
-} from "../../../services/database";
-import { safeRequest } from "../../../services/safeRequest"; // ✅ novo
-
 import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
 
 const celebrationGif = require("../../../../assets/animations/celebration.gif");
 
+interface Meta {
+    id: string;
+    text: string;
+    totalDias: number;
+    daysCompleted: number;
+    disabled: boolean;
+}
+
 const Metas = () => {
-    const [metas, setMetas] = useState([]);
+    const [metas, setMetas] = useState<Meta[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [modalVisible, setModalVisible] = useState(false);
     const [novaMetaText, setNovaMetaText] = useState("");
     const [numeroDias, setNumeroDias] = useState("");
     const [showCelebration, setShowCelebration] = useState(false);
     const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
-    const [goalToDeleteId, setGoalToDeleteId] = useState(null);
+    const [goalToDeleteId, setGoalToDeleteId] = useState<string | null>(null);
+    const [isExecuted, setIsExecuted] = useState(false);
+    const [editingGoal, setEditingGoal] = useState<Meta | null>(null);
 
     const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
 
-    // 🔄 Carregar metas sempre que a tela receber foco
     useFocusEffect(
         useCallback(() => {
             loadMetas();
         }, [])
     );
 
-    // 🎉 Esconder a animação após 5s
     useEffect(() => {
         let timer;
         if (showCelebration) {
@@ -55,91 +55,88 @@ const Metas = () => {
         return () => clearTimeout(timer);
     }, [showCelebration]);
 
-    // 🔽 Carrega metas (API ou local)
     const loadMetas = async () => {
+        setIsLoading(true);
         try {
-            const response = await safeRequest({
-                method: "get",
-                url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`,
-            });
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`);
+            const data = response.data;
+
+            if (!data || !Array.isArray(data.goals)) {
+                console.warn("Formato inesperado de resposta:", data);
+                setMetas([]);
+                return;
+            }
 
             const today = new Date().toISOString().split("T")[0];
-            const goals = response?.data?.goals || [];
 
-            const mappedMetas = await Promise.all(
-                goals.map(async (goal) => {
-                    const lastClickDate = await getLastClickDate(goal.id);
-                    return {
-                        id: goal.id,
-                        text: goal.description,
-                        totalDias: goal.numberDays,
-                        daysCompleted: goal.daysCompleted || 0,
-                        disabled: lastClickDate === today,
-                    };
-                })
-            );
-
-            setMetas(mappedMetas);
-        } catch (error) {
-            console.log("⚠️ Sem internet, carregando metas locais...");
-            const localGoals = await getLocalGoals();
-            setMetas(
-                localGoals.map((goal) => ({
+            const mappedMetas = data.goals.map(goal => {
+                const goalDate = goal.updatedAt ? new Date(goal.updatedAt).toISOString().split("T")[0] : null;
+                return {
                     id: goal.id,
                     text: goal.description,
                     totalDias: goal.numberDays,
-                    daysCompleted: goal.daysCompleted,
-                    disabled: false,
-                }))
-            );
+                    daysCompleted: goal.counter || 0,
+                    disabled: goal.counter > 0 && goalDate === today,
+                };
+            });
+
+
+
+            setMetas(mappedMetas);
+        } catch (error) {
+            console.error("Erro ao carregar metas:", error);
+            setMetas([]);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // 📌 Marcar progresso de uma meta
-    const handlePress = async (metaId) => {
-        const today = new Date().toISOString().split("T")[0];
-        let metaCompleted = false;
 
-        const updatedMetas = await Promise.all(
-            metas.map(async (meta) => {
-                if (meta.id === metaId && !meta.disabled) {
-                    // 🔄 Salva no servidor (ou pending_requests)
-                    await safeRequest({
-                        method: "patch",
-                        url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`,
-                    });
+    const handlePress = async (metaId: string) => {
+        try {
+            // Atualiza o contador no backend e marca como executada
+            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`);
+            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_EXECUTE(metaId, userPersonId)}`);
 
-                    // Atualiza local
-                    const newDaysCompleted = meta.daysCompleted + 1;
-                    await updateGoalProgress(meta.id, newDaysCompleted);
-                    await setLastClickDate(meta.id, today);
-
-                    if (newDaysCompleted >= meta.totalDias) {
-                        metaCompleted = true;
+            // Atualiza localmente
+            setMetas(prevMetas =>
+                prevMetas.map(meta => {
+                    if (meta.id === metaId) {
+                        const newDaysCompleted = meta.daysCompleted + 1;
+                        return {
+                            ...meta,
+                            daysCompleted: newDaysCompleted,
+                            disabled: true, // se já executou hoje
+                        };
                     }
+                    return meta;
+                })
+            );
 
-                    return { ...meta, daysCompleted: newDaysCompleted, disabled: true };
-                }
-                return meta;
-            })
-        );
+            // Mostra celebração se a meta terminou
+            const metaAtualizada = metas.find(m => m.id === metaId);
+            if (metaAtualizada && metaAtualizada.daysCompleted + 1 >= metaAtualizada.totalDias) {
+                setShowCelebration(true);
+            }
 
-        setMetas(updatedMetas);
-        if (metaCompleted) setShowCelebration(true);
+        } catch (error) {
+            console.error("Erro ao atualizar meta:", error);
+            alert("Não foi possível atualizar a meta. Verifique sua conexão.");
+            loadMetas();
+        }
     };
 
-    // 🗑️ Excluir meta
-    const excluirMeta = async (metaId) => {
-        await safeRequest({
-            method: "delete",
-            url: `${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`,
-        });
 
-        await deleteLocalGoal(metaId);
-        setMetas((prevMetas) => prevMetas.filter((meta) => meta.id !== metaId));
+    const excluirMeta = async (metaId: string) => {
+        try {
+            await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`);
+            setMetas(prev => prev.filter(meta => meta.id !== metaId));
+        } catch (error) {
+            console.error(error);
+            alert("Não foi possível excluir a meta. Tente novamente.");
+        }
     };
 
-    // Lida com a confirmação da exclusão
     const handleConfirmDelete = async () => {
         if (goalToDeleteId) {
             await excluirMeta(goalToDeleteId);
@@ -148,35 +145,107 @@ const Metas = () => {
         }
     };
 
-    // ➕ Adicionar nova meta
+    // Função usada para criar OU editar
     const addNewGoal = async () => {
         const description = novaMetaText.trim();
         const numberDays = Number(numeroDias);
 
-        if (!description || !numberDays) {
-            alert("Preencha todos os campos!");
+        if (!description || !numberDays || numberDays <= 0) {
+            alert("Preencha todos os campos com valores válidos!");
             return;
         }
 
-        // Salva primeiro no local
-        const goalId = await saveLocalGoal({
-            userPersonId,
-            description,
-            numberDays,
-        });
+        try {
+            if (editingGoal) {
+                // Atualiza meta existente
+                await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_UPDATE(editingGoal.id, userPersonId)}`, {
+                    description,
+                    numberDays,
+                });
+            } else {
+                // Cria nova meta
+                await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
+                    userPersonId,
+                    description,
+                    numberDays,
+                });
+            }
 
-        // E agenda para API
-        await safeRequest({
-            method: "post",
-            url: `${API_BASE_URL}${ENDPOINTS.GOAL}`,
-            data: { id: goalId, userPersonId, description, numberDays },
-        });
+            await loadMetas();
+            closeModal();
+        } catch (error) {
+            console.error("Erro ao salvar meta:", error);
+            alert("Não foi possível salvar a meta. Tente novamente.");
+        }
+    };
 
-        await loadMetas();
+    const updateGoal = (meta: Meta) => {
+        if (!isExecuted) {
+            setEditingGoal(meta);
+            setNovaMetaText(meta.text);
+            setNumeroDias(meta.totalDias.toString());
+            setModalVisible(true);
+        } else {
+            alert("Não é possível editar a meta, pois ela já foi executada.");
+        }
+    };
 
+    const closeModal = () => {
+        setModalVisible(false);
+        setEditingGoal(null);
         setNovaMetaText("");
         setNumeroDias("");
-        setModalVisible(false);
+    };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <ActivityIndicator size="large" color="#2980B9" />
+                    <Text style={styles.emptyText}>Carregando metas...</Text>
+                </View>
+            );
+        }
+
+        if (metas.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Nenhuma meta registrada</Text>
+                    <Text>Clique no '+' para começar!</Text>
+                </View>
+            );
+        }
+
+        return metas.map(meta => (
+            <View key={meta.id} style={styles.cardContainer}>
+                <TouchableOpacity
+                    style={[styles.cards, meta.disabled && styles.disabledCard]}
+                    onPress={() => handlePress(meta.id)}
+                    disabled={meta.disabled}
+                >
+                    <Text style={styles.textCard}>{meta.text}</Text>
+                    <View style={styles.progressRow}>
+                        <ProgressBar progress={meta.daysCompleted} total={meta.totalDias} />
+                        <Text style={styles.daysText}>
+                            {meta.daysCompleted}/{meta.totalDias}
+                        </Text>
+                    </View>
+                    <View style={styles.actionsContainer}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                setGoalToDeleteId(meta.id);
+                                setShowConfirmDeleteModal(true);
+                            }}
+                        >
+                            <Trash2 color="red" size={24} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => updateGoal(meta)}>
+                            <Pencil color="black" size={24} />
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </View>
+        ));
     };
 
     return (
@@ -186,68 +255,20 @@ const Metas = () => {
                     <View style={styles.textMetas}>
                         <Text style={styles.text}>Minhas Metas</Text>
                     </View>
-
-                    <View style={styles.cardsMeta}>
-                        {metas.length === 0 ? (
-                            <View style={styles.emptyContainer}>
-                                <Text style={styles.emptyText}>Nenhuma meta registrada</Text>
-                            </View>
-                        ) : (
-                            metas.map((meta) => (
-                                <View key={meta.id} style={styles.cardContainer}>
-                                    <TouchableOpacity
-                                        style={[styles.cards, meta.disabled && styles.disabledCard]}
-                                        onPress={() => handlePress(meta.id)}
-                                        disabled={meta.disabled}
-                                    >
-                                        <Text style={styles.textCard}>{meta.text}</Text>
-                                        <View style={styles.progressRow}>
-                                            <ProgressBar
-                                                progress={meta.daysCompleted}
-                                                total={meta.totalDias}
-                                            />
-                                            <Text style={styles.daysText}>
-                                                {meta.daysCompleted}/{meta.totalDias}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.actionsContainer}>
-                                            <TouchableOpacity
-                                                onPress={() => {
-                                                    setGoalToDeleteId(meta.id);
-                                                    setShowConfirmDeleteModal(true);
-                                                }}
-                                            >
-                                                <Trash2 color="red" size={24} />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => console.log("editar", meta.id)}>
-                                                <Pencil color="black" size={24} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </TouchableOpacity>
-                                </View>
-                            ))
-                        )}
-                    </View>
+                    <View style={styles.cardsMeta}>{renderContent()}</View>
                 </ScrollView>
 
-                {/* ➕ Botão para nova meta */}
-                <TouchableOpacity
-                    style={styles.newMetaContainer}
-                    onPress={() => setModalVisible(true)}
-                >
+                <TouchableOpacity style={styles.newMetaContainer} onPress={() => setModalVisible(true)}>
                     <Text style={styles.plusIcon}>+</Text>
                 </TouchableOpacity>
 
-                {/* 📌 Modal para adicionar nova meta */}
-                <Modal
-                    animationType="slide"
-                    transparent={true}
-                    visible={modalVisible}
-                    onRequestClose={() => setModalVisible(false)}
-                >
+                {/* Modal adicionar/editar meta */}
+                <Modal animationType="slide" transparent visible={modalVisible} onRequestClose={closeModal}>
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Adicionar Nova Meta</Text>
+                            <Text style={styles.modalTitle}>
+                                {editingGoal ? "Editar Meta" : "Adicionar Nova Meta"}
+                            </Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Nome da meta"
@@ -262,25 +283,19 @@ const Metas = () => {
                                 onChangeText={setNumeroDias}
                             />
                             <TouchableOpacity style={styles.modalButton} onPress={addNewGoal}>
-                                <Text style={styles.modalButtonText}>Adicionar</Text>
+                                <Text style={styles.modalButtonText}>
+                                    {editingGoal ? "Salvar Alterações" : "Adicionar"}
+                                </Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.modalButtonCancel}
-                                onPress={() => setModalVisible(false)}
-                            >
+                            <TouchableOpacity style={styles.modalButtonCancel} onPress={closeModal}>
                                 <Text style={styles.modalButtonTextCancel}>Cancelar</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
 
-                {/* 🗑️ Modal para CONFIRMAR EXCLUSÃO */}
-                <Modal
-                    animationType="fade"
-                    transparent={true}
-                    visible={showConfirmDeleteModal}
-                    onRequestClose={() => setShowConfirmDeleteModal(false)}
-                >
+                {/* Modal confirmar exclusão */}
+                <Modal animationType="fade" transparent visible={showConfirmDeleteModal} onRequestClose={() => setShowConfirmDeleteModal(false)}>
                     <View style={styles.modalContainer}>
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Confirmar Exclusão</Text>
@@ -289,13 +304,13 @@ const Metas = () => {
                             </Text>
                             <View style={styles.modalButtonRow}>
                                 <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: "#6c757d" }]}
+                                    style={[styles.modalButton, { backgroundColor: "#6c757d", width: '100%' }]}
                                     onPress={() => setShowConfirmDeleteModal(false)}
                                 >
                                     <Text style={styles.modalButtonText}>Cancelar</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
-                                    style={[styles.modalButton, { backgroundColor: "#dc3545" }]}
+                                    style={[styles.modalButton, { backgroundColor: "#dc3545", width: '100%' }]}
                                     onPress={handleConfirmDelete}
                                 >
                                     <Text style={styles.modalButtonText}>Excluir</Text>
@@ -305,13 +320,9 @@ const Metas = () => {
                     </View>
                 </Modal>
 
-                {/* 🎉 Modal de celebração */}
+                {/* Modal celebração */}
                 {showCelebration && (
-                    <TouchableOpacity
-                        style={styles.celebrationContainer}
-                        onPress={() => setShowCelebration(false)}
-                        activeOpacity={1}
-                    >
+                    <TouchableOpacity style={styles.celebrationContainer} onPress={() => setShowCelebration(false)} activeOpacity={1}>
                         <View style={styles.celebrationContent}>
                             <Text style={styles.celebrationTitle}>Meta Concluída!</Text>
                             <Image source={celebrationGif} style={styles.gif} />
@@ -345,6 +356,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'flex-start',
         padding: 16,
+        paddingBottom: 100, // Espaço para o botão flutuante
     },
     textMetas: {
         marginTop: '20%',
@@ -382,15 +394,16 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     disabledCard: {
+        backgroundColor: '#f0f0f0', // Cor de fundo para indicar que está desabilitado
         opacity: 0.7,
     },
     textCard: {
         fontSize: 16,
         fontWeight: '500',
         paddingRight: 30,
-        marginBottom: '5%', // Garante que o texto não fique sob os ícones
+        marginBottom: '5%',
     },
-    progressRow: { // Adicionado para encapsular a barra e o texto
+    progressRow: {
         width: '100%',
         marginTop: 0,
     },
@@ -398,7 +411,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: "center",
-        bottom: 19 // Espaçamento entre a barra e o texto
+        bottom: 19
     },
     newMetaContainer: {
         position: 'absolute',
@@ -476,7 +489,8 @@ const styles = StyleSheet.create({
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: '70%',
+        marginTop: '50%',
+        gap: 10,
     },
     emptyText: {
         color: '#161616ff',
@@ -507,7 +521,6 @@ const styles = StyleSheet.create({
         width: 400,
         height: 400,
     },
-    // ✅ NOVOS ESTILOS PARA O MODAL DE CONFIRMAÇÃO
     modalBodyText: {
         fontSize: 16,
         textAlign: 'center',
@@ -515,10 +528,9 @@ const styles = StyleSheet.create({
         color: '#333'
     },
     modalButtonRow: {
-        flexDirection: 'column',
-        marginBottom: '5%',
         gap: 10,
-        justifyContent: 'space-between',
-        width: '50%',
+
+        width: '80%',
+
     },
 });

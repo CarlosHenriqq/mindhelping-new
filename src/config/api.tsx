@@ -13,6 +13,9 @@ export const ENDPOINTS = {
   SCHEDULES_GET: (professionalId: string) => `/schedules/${professionalId}`,
   HOUR_GET: (scheduleId:string) => `/hourlies/${scheduleId}`,
   SCHEDULING: '/schedulings',
+  SCHEDULING_USER:(userId:string) =>`/schedulings/${userId}`,
   USER:'/user',
+  USER_DETAILS: (userId: string) => `/me/${userId}`,
+  FEELINGS_USER:(userId:string) => `/feelings/${userId}`,
   LOGIN: '/persons/authenticate'
 };

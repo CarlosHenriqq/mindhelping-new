@@ -1,32 +1,18 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
-import FeelingsChart from '../../../../../components/feelingCharts'; // Importando seu componente customizado
+import FeelingsChart from '../../../../../components/feelingCharts';
+import { API_BASE_URL, ENDPOINTS } from '../../../../config/api'; // Ajuste se necessário
 
 export default function ChartMonth() {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [allFeelings, setAllFeelings] = useState({});
-    // Estados para os dados e o valor máximo do gráfico customizado
     const [chartData, setChartData] = useState([]);
     const [maxValue, setMaxValue] = useState(1);
     const [isEnabled, setIsEnabled] = useState(true);
 
     const toggleSwitch = () => setIsEnabled(previousState => !previousState);
-
-    useEffect(() => {
-        const getDailyFeelings = async () => {
-            try {
-                const storedFeelings = await AsyncStorage.getItem('@dailyFeelings');
-                const parsedFeelings = storedFeelings ? JSON.parse(storedFeelings) : {};
-                setAllFeelings(parsedFeelings);
-            } catch (e) {
-                console.log("Erro ao ler os sentimentos diários: ", e);
-            }
-        };
-        getDailyFeelings();
-    }, []);
 
     const feelingColors = {
         FELIZ: '#edd892',
@@ -48,7 +34,7 @@ export default function ChartMonth() {
         return cleanText;
     };
 
-    const handleSearch = () => {
+    const handleSearch = async () => {
         Keyboard.dismiss();
         if (startDate.length !== 10 || endDate.length !== 10) {
             Alert.alert("Erro", "Por favor, insira as datas de início e fim no formato dd/mm/aaaa.");
@@ -63,47 +49,48 @@ export default function ChartMonth() {
             return;
         }
 
-        const feelingCounts = {
-            FELIZ: 0, TRISTE: 0, RAIVA: 0,
-            ANSIOSO: 0, TEDIO: 0, NEUTRO: 0
-        };
-
-        Object.keys(allFeelings).forEach(dateString => {
-            const entryDate = new Date(dateString);
-            if (entryDate >= start && entryDate <= end) {
-                const dayEntries = allFeelings[dateString];
-                if (Array.isArray(dayEntries)) {
-                    dayEntries.forEach(entry => {
-                        if (entry && entry.feeling) {
-                            const upperFeeling = String(entry.feeling).toUpperCase();
-                            if (feelingCounts[upperFeeling] !== undefined) {
-                                feelingCounts[upperFeeling]++;
-                            }
-                        }
-                    });
+        try {
+            const userId = '4765ab60-785f-4215-942e-22d9535bd877'; // Ajuste conforme seu contexto
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`, {
+                params: {
+                    startDay: start.toISOString().split('T')[0],
+                    endDay: end.toISOString().split('T')[0],
                 }
-            }
-        });
+            });
 
-        // Transforma os dados para o formato do seu componente FeelingsChart
-        const dataForChart = Object.keys(feelingCounts).map(key => ({
-            label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
-            value: feelingCounts[key],
-            color: feelingColors[key] || '#A9A9A9'
-        }));
+            const feelings = response.data.feelings || [];
 
-        const totalFeelings = dataForChart.reduce((sum, item) => sum + item.value, 0);
+            const feelingCounts = {
+                FELIZ: 0, TRISTE: 0, RAIVA: 0,
+                ANSIOSO: 0, TEDIO: 0, NEUTRO: 0
+            };
 
-        setChartData(dataForChart);
-        setMaxValue(totalFeelings > 0 ? totalFeelings : 1);
+            feelings.forEach(f => {
+                if (f && f.description) {
+                    const desc = f.description.toUpperCase();
+                    if (feelingCounts[desc] !== undefined) feelingCounts[desc]++;
+                }
+            });
+
+            const dataForChart = Object.keys(feelingCounts).map(key => ({
+                label: key.charAt(0) + key.slice(1).toLowerCase(),
+                value: feelingCounts[key],
+                color: feelingColors[key] || '#A9A9A9'
+            }));
+
+            const totalFeelings = dataForChart.reduce((sum, item) => sum + item.value, 0);
+            setChartData(dataForChart);
+            setMaxValue(totalFeelings > 0 ? totalFeelings : 1);
+
+        } catch (error) {
+            console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
+            Alert.alert("Erro", "Não foi possível buscar os sentimentos. Tente novamente.");
+        }
     };
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior="padding">
-            <LinearGradient
-                colors={['#eff6ff', '#dbeafe']}
-                style={styles.background}
-            >
+            <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
                 <View style={styles.header}>
                     <Text style={styles.title}>Relatório Mensal</Text>
                     <View style={styles.filterContainer}>
@@ -153,17 +140,23 @@ export default function ChartMonth() {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                     <Switch
-                        trackColor={{ false: "#f4f3f4", true: "#81b0ff" }} // Cor do "trilho"
-                        thumbColor={isEnabled ? "#ffffff" : "#f4f3f4"} // Cor do botão que desliza
-                        onValueChange={toggleSwitch} // Função para mudar o estado
+                        trackColor={{ false: "#f4f3f4", true: "#81b0ff" }}
+                        thumbColor={isEnabled ? "#ffffff" : "#f4f3f4"}
+                        onValueChange={toggleSwitch}
                         value={isEnabled}
-                        style={{ marginLeft: '6%' }} // O valor atual (ligado ou desligado)
-                    /><Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 16 }}>Compartilhar Dados com meu profissional</Text>
+                        style={{ marginLeft: '6%' }}
+                    />
+                    <Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 16 }}>
+                        Compartilhar Dados com meu profissional
+                    </Text>
                 </View>
             </LinearGradient>
         </KeyboardAvoidingView>
     );
 }
+
+// Mantém todos os estilos como estão
+
 
 const styles = StyleSheet.create({
     container: {

@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient"; // <-- 1. CORREÇÃO CRÍTICA AQUI
 import { router, useFocusEffect } from "expo-router";
 import {
@@ -10,7 +10,7 @@ import {
     MapPin,
     TrophyIcon
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
     Image,
     ScrollView, // <-- 2. ADICIONADO SCROLLVIEW
@@ -19,55 +19,38 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import { getMaxGoalsCompleted } from "../../../services/database";
+import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
+
 
 export default function Perfil() {
     const [lastFeeling, setLastFeeling] = useState("");
     const [qtdeMetas, setQtdeMetas] = useState(0)
+    const [name, setName] = useState('')
+    const [adress, setAdress] = useState('')
 
     async function loadLastFeeling() {
+        const userId = '4765ab60-785f-4215-942e-22d9535bd877';
+
         try {
-            const data = await AsyncStorage.getItem("@dailyFeelings");
-            if (!data) return;
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER_DETAILS(userId)}`);
+            const dados = response.data;
 
-            const feelings = JSON.parse(data);
-            const dates = Object.keys(feelings).sort();
-            if (dates.length === 0) return;
-
-            const lastDate = dates[dates.length - 1];
-            const lastDayEntries = feelings[lastDate];
-
-            if (Array.isArray(lastDayEntries) && lastDayEntries.length > 0) {
-                const lastEntry = lastDayEntries[lastDayEntries.length - 1];
-                setLastFeeling(lastEntry?.feeling || "Nenhum");
-            } else {
-                setLastFeeling("Nenhum");
-            }
+            // Agora pegamos os dados dentro de profile
+            setLastFeeling(dados.profile.lastFeeling);
+            setQtdeMetas(dados.profile.countExecutedGoals);
+            setName(dados.profile.nameUser)
+            setAdress(`${dados.profile.cityAndUf.city} - ${dados.profile.cityAndUf.uf}`);
         } catch (error) {
             console.log("Erro ao carregar último sentimento:", error);
-        }
-    }
-
-    async function getMetas() {
-        try {
-            const qtde = await getMaxGoalsCompleted()
-            setQtdeMetas(qtde)
-            console.log(qtdeMetas)
-        }
-        catch {
-            console.log(error)
         }
     }
 
     useFocusEffect(
         React.useCallback(() => {
             loadLastFeeling();
-            getMetas()
+
         }, [])
     );
-       useEffect(() => {
-        getMetas();
-    }, []);
     return (
         <LinearGradient
             colors={['#eff6ff', '#dbeafe']}
@@ -93,10 +76,10 @@ export default function Perfil() {
                         source={{ uri: "https://i.pravatar.cc/150?img=38" }}
                         style={styles.foto}
                     />
-                    <Text style={styles.nome}>Juliana Alves</Text>
+                    <Text style={styles.nome}>{name}</Text>
                     <View style={styles.locationContainer}>
                         <MapPin size={16} color={"#555"} />
-                        <Text style={styles.locationText}>Birigui-SP</Text>
+                        <Text style={styles.locationText}>{adress}</Text>
                     </View>
                     <TouchableOpacity style={styles.editButton} onPress={() => router.replace('/pages/Perfil/editPerfil')}>
                         <Text style={styles.editButtonText}>Editar Perfil</Text>

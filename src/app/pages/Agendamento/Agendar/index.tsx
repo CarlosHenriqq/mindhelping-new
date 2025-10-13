@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Calendar, DateObject } from "react-native-calendars";
 import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
+import { useUser } from "../../../../context/UserContext";
 
 export interface Professional {
   name: string;
@@ -38,6 +39,7 @@ export default function AgendarConsulta() {
   const [horarios, setHorarios] = useState<string[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [visibleDate, setVisibleDate] = useState(new Date());
+  const { userId } = useUser();
   // controle do modal
   const [modalVisible, setModalVisible] = useState(false);
   const [hourSelected, setHourSelected] = useState<string | null>(null);
@@ -131,7 +133,7 @@ export default function AgendarConsulta() {
   async function confirmScheduling() {
     if (!selectedDate || !hourSelected) return;
 
-    const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
+    
 
     const schedule = schedules.find((sch: any) =>
       sch.initialTime?.startsWith(selectedDate)
@@ -147,7 +149,7 @@ export default function AgendarConsulta() {
         `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
         {
           professionalPersonId: id,
-          userPersonId: userPersonId,
+          userPersonId: userId,
           scheduleId: schedule.id,
           hour: hourSelected,
           date: selectedDate,
@@ -343,7 +345,7 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderColor: "transparent",
-    borderRadius: 12,
+    borderRadius: 20,
     marginHorizontal: "5%",
     padding: 15,
     width: "90%",

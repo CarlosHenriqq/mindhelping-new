@@ -24,6 +24,7 @@ const FeelingsChart = ({ data, maxValue, layout = 'horizontal' }) => {
                                     height: `${(item.value / maxValue) * 100}%`
                                 }]} />
                             </View>
+                            <Text style={styles.barValueVertical}>{item.value}</Text>
                         </View>
                     ) : (
                         <View key={index} style={styles.barContainerHorizontal}>
@@ -56,6 +57,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 10,
     },
+    barValueVertical: {
+  fontSize: 12,
+  fontWeight: 'bold',
+  textAlign: 'center',
+  marginTop: 4,
+},
+
     barContainerHorizontal: {
         marginBottom: 16,
     },

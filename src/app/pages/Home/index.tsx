@@ -2,11 +2,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
+import { useUser } from '../../../context/UserContext';
 import {
     goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification
 } from '../../../services/notificationService';
@@ -65,7 +66,7 @@ export default function Home() {
     ]);
 
     const [userName, setUserName] = useState('Carlos');
-    const [userId, setUserId] = useState('4765ab60-785f-4215-942e-22d9535bd877');
+   const { userId } = useUser();
 
     const [modalSelected, setModalSelect] = useState(false);
     const [inputText, setInputText] = useState('');
@@ -75,7 +76,7 @@ export default function Home() {
     const [nextAppointment, setNextAppointment] = useState(null);
 
     const fetchNextAppointment = async () => {
-        const userId = '4765ab60-785f-4215-942e-22d9535bd877';
+       
 
         if (!userId) {
             console.log("ID do usuário não encontrado. Não é possível buscar agendamento.");
@@ -122,30 +123,34 @@ export default function Home() {
     };
 
 
-    useFocusEffect(
-        useCallback(() => {
-            const loadAppointmentData = async () => {
-                const appointmentData = await fetchNextAppointment();
-                setNextAppointment(appointmentData);
-                if (appointmentData) {
-                    scheduleAppointmentReminder(appointmentData);
-                }
-            };
+    useEffect(() => {
+  // roda apenas uma vez para registrar notificações gerais
+  scheduleDailyReminderNotification();
+  goalsWeeklyNotification();
+  scheduleWeeklyReportNotification();
+}, []);
 
-            // Notificações gerais (executam apenas uma vez por foco)
-            scheduleDailyReminderNotification();
-            goalsWeeklyNotification();
-            scheduleWeeklyReportNotification();
+useFocusEffect(
+  useCallback(() => {
+    const loadAppointmentData = async () => {
+      const appointmentData = await fetchNextAppointment();
+      setNextAppointment(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(appointmentData)) return prev;
+        return appointmentData;
+      });
+      if (appointmentData) {
+        scheduleAppointmentReminder(appointmentData);
+      }
+    };
 
-            // Busca o agendamento sempre que a tela for focada
-            loadAppointmentData();
+    loadAppointmentData();
 
-            // Retorno opcional (se quiser limpar algo quando sai da tela)
-            return () => {
-                console.log("Saindo da tela Home");
-            };
-        }, [userId])
-    );
+    return () => {
+      console.log("Saindo da tela Home");
+    };
+  }, [userId])
+);
+
 
 
     // --- Função modificada para não usar o banco de dados ---
@@ -260,7 +265,7 @@ export default function Home() {
                         </View>
                         <View>
                             <TouchableOpacity onPress={() => router.replace('/pages/Agendamento')} style={styles.searchProf}>
-                                <Text>Procurar Profissionais</Text>
+                                <Text style={{fontWeight:700, color:'#ffffff'}}>Buscar Profissionais</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -340,7 +345,8 @@ const styles = StyleSheet.create({
     userText: {
         fontSize: 18,
         fontFamily: 'Roboto-Regular',
-        top: 5
+        top: 5,
+        marginBottom:'2%'
     },
     foto: {
         width: 50,
@@ -489,11 +495,12 @@ const styles = StyleSheet.create({
     },
     searchProf: {
         marginTop: '5%',
-        borderWidth: 0.5,
+        marginLeft:'5%',
+        
         borderColor: '#000000',
-        width: '90%',
+        width: '50%',
         padding: 10,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#7296c5ff',
         borderRadius: 20,
         alignSelf: 'center',
         justifyContent: "center",

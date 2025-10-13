@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Checkbox from 'expo-checkbox';
 import { useRouter } from "expo-router";
@@ -7,6 +8,7 @@ import { ActivityIndicator, Alert, Dimensions, ImageBackground, KeyboardAvoiding
 import Logo from '../../../assets/logo.svg';
 import Mascote from '../../../assets/mascote.svg';
 import { API_BASE_URL, ENDPOINTS } from '../../config/api';
+import { useUser } from '../../context/UserContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -16,6 +18,8 @@ export default function Login() {
     const [login, setLogin] = useState('');
     const [senha, setSenha] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const { setUserId } = useUser(); // <-- importa o setter
 
     async function handleLogin() {
         if (!login || !senha) {
@@ -33,8 +37,13 @@ export default function Login() {
 
             console.log('ENTROU', response.data);
 
-            // Aqui você pode salvar token ou redirecionar
-            router.push('/pages/Home'); // exemplo
+            // Salva o userId no contexto global
+            const id = response.data.user.userId; // ajuste conforme o nome retornado pela API
+            setUserId(id);
+            if (toggleCheck) {
+                await AsyncStorage.setItem('userId', id);
+            }
+            router.push('/pages/Home');
         } catch (error: any) {
             console.log(error);
             Alert.alert("Erro", "Falha ao realizar login. Verifique suas credenciais.");
@@ -42,7 +51,6 @@ export default function Login() {
             setLoading(false);
         }
     }
-
     return (
         <ImageBackground
             source={require('../../../assets/images/gradiente.png')}
@@ -100,7 +108,7 @@ export default function Login() {
                     </View>
 
                     <TouchableOpacity
-                        onPress={handleLogin}
+                        onPress={(handleLogin)}
                         style={[styles.button, loading && { opacity: 0.7 }]}
                         disabled={loading}
                     >

@@ -14,8 +14,9 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import ProgressBar from "../../../../components/progessBar";
+import ProgressBar from "../../../components/progessBar";
 import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
+import { useUser } from "../../../context/UserContext";
 
 const celebrationGif = require("../../../../assets/animations/celebration.gif");
 
@@ -39,7 +40,7 @@ const Metas = () => {
     const [isExecuted, setIsExecuted] = useState(false);
     const [editingGoal, setEditingGoal] = useState<Meta | null>(null);
 
-    const userPersonId = "4765ab60-785f-4215-942e-22d9535bd877";
+    const { userId } = useUser();
 
     useFocusEffect(
         useCallback(() => {
@@ -58,7 +59,7 @@ const Metas = () => {
     const loadMetas = async () => {
         setIsLoading(true);
         try {
-            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userPersonId)}`);
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userId)}`);
             const data = response.data;
 
             if (!data || !Array.isArray(data.goals)) {
@@ -76,7 +77,7 @@ const Metas = () => {
                     text: goal.description,
                     totalDias: goal.numberDays,
                     daysCompleted: goal.counter || 0,
-                    disabled: goal.counter > 0 && goalDate === today,
+                    disabled: goal.counter > 0 && goalDate === today && goal.counter == goal.numberDays,
                 };
             });
 
@@ -95,8 +96,8 @@ const Metas = () => {
     const handlePress = async (metaId: string) => {
         try {
             // Atualiza o contador no backend e marca como executada
-            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userPersonId)}`);
-            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_EXECUTE(metaId, userPersonId)}`);
+            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userId)}`);
+            await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_EXECUTE(metaId, userId)}`);
 
             // Atualiza localmente
             setMetas(prevMetas =>
@@ -129,7 +130,7 @@ const Metas = () => {
 
     const excluirMeta = async (metaId: string) => {
         try {
-            await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userPersonId)}`);
+            await axios.delete(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_DELETE(metaId, userId)}`);
             setMetas(prev => prev.filter(meta => meta.id !== metaId));
         } catch (error) {
             console.error(error);
@@ -158,14 +159,14 @@ const Metas = () => {
         try {
             if (editingGoal) {
                 // Atualiza meta existente
-                await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_UPDATE(editingGoal.id, userPersonId)}`, {
+                await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_UPDATE(editingGoal.id, userId)}`, {
                     description,
                     numberDays,
                 });
             } else {
                 // Cria nova meta
                 await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
-                    userPersonId,
+                    userPersonId:userId,
                     description,
                     numberDays,
                 });

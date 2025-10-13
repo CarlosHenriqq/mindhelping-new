@@ -78,9 +78,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     header: {
+        marginTop:'5%',
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom:'5%',
     },
     backButton: {
         flexDirection: 'row',

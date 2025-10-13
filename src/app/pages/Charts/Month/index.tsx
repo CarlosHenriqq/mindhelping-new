@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
-import FeelingsChart from '../../../../../components/feelingCharts';
+import { Alert, Keyboard, KeyboardAvoidingView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import FeelingsChart from '../../../../components/feelingCharts';
 import { API_BASE_URL, ENDPOINTS } from '../../../../config/api'; // Ajuste se necessário
+import { useUser } from '../../../../context/UserContext';
 
 export default function ChartMonth() {
     const [startDate, setStartDate] = useState('');
@@ -11,7 +12,7 @@ export default function ChartMonth() {
     const [chartData, setChartData] = useState([]);
     const [maxValue, setMaxValue] = useState(1);
     const [isEnabled, setIsEnabled] = useState(true);
-
+    const { userId } = useUser();
     const toggleSwitch = () => setIsEnabled(previousState => !previousState);
 
     const feelingColors = {
@@ -23,7 +24,7 @@ export default function ChartMonth() {
         NEUTRO: '#A9A9A9'
     };
 
-    const formatDate = (text) => {
+    const formatDate = (text:string) => {
         let cleanText = text.replace(/\D/g, '');
         if (cleanText.length > 8) cleanText = cleanText.slice(0, 8);
         if (cleanText.length >= 5) {
@@ -35,6 +36,7 @@ export default function ChartMonth() {
     };
 
     const handleSearch = async () => {
+        console.log('chamou')
         Keyboard.dismiss();
         if (startDate.length !== 10 || endDate.length !== 10) {
             Alert.alert("Erro", "Por favor, insira as datas de início e fim no formato dd/mm/aaaa.");
@@ -50,7 +52,7 @@ export default function ChartMonth() {
         }
 
         try {
-            const userId = '4765ab60-785f-4215-942e-22d9535bd877'; // Ajuste conforme seu contexto
+
             const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`, {
                 params: {
                     startDay: start.toISOString().split('T')[0],
@@ -67,10 +69,12 @@ export default function ChartMonth() {
 
             feelings.forEach(f => {
                 if (f && f.description) {
-                    const desc = f.description.toUpperCase();
+                    let desc = f.description.toUpperCase();
+                    if (desc === "NÃO_SEI_DIZER") desc = "NEUTRO";
                     if (feelingCounts[desc] !== undefined) feelingCounts[desc]++;
                 }
             });
+
 
             const dataForChart = Object.keys(feelingCounts).map(key => ({
                 label: key.charAt(0) + key.slice(1).toLowerCase(),
@@ -82,11 +86,14 @@ export default function ChartMonth() {
             setChartData(dataForChart);
             setMaxValue(totalFeelings > 0 ? totalFeelings : 1);
 
+            
+
         } catch (error) {
             console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
             Alert.alert("Erro", "Não foi possível buscar os sentimentos. Tente novamente.");
         }
     };
+
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior="padding">
@@ -124,15 +131,16 @@ export default function ChartMonth() {
                         fontSize: 16,
                         fontWeight: 'bold',
                         textAlign: "center",
-                        marginVertical: 10
+                        marginTop: '5%'
                     }}>
                         Relatório geral de emoções
                     </Text>
                     <View style={styles.chartContent}>
                         {chartData.length > 0 && chartData.some(d => d.value > 0) ? (
-                            <ScrollView>
+                            <View style={{ height: 300, marginTop: '15%', justifyContent: 'center' }}>
                                 <FeelingsChart data={chartData} maxValue={maxValue} layout='vertical' />
-                            </ScrollView>
+                            </View>
+
                         ) : (
                             <Text style={{ textAlign: 'center', }}>Faça uma busca para exibir o gráfico.</Text>
                         )}
@@ -146,8 +154,8 @@ export default function ChartMonth() {
                         value={isEnabled}
                         style={{ marginLeft: '6%' }}
                     />
-                    <Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 16 }}>
-                        Compartilhar Dados com meu profissional
+                    <Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 14 }}>
+                        Compartilhar dados com meu profissional
                     </Text>
                 </View>
             </LinearGradient>

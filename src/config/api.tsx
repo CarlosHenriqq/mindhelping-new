@@ -1,5 +1,5 @@
 // src/config/api.js
-export const API_BASE_URL = 'http://10.11.185.214:3333';
+export const API_BASE_URL = 'https://mind-helping-api.fly.dev';
 
 export const ENDPOINTS = {
   PROFESSIONALS: '/professionals',
@@ -14,7 +14,7 @@ export const ENDPOINTS = {
   HOUR_GET: (scheduleId:string) => `/hourlies/${scheduleId}`,
   SCHEDULING: '/schedulings',
   SCHEDULING_USER:(userId:string) =>`/schedulings/${userId}`,
-  USER:'/user',
+  USER:'/users',
   USER_DETAILS: (userId: string) => `/me/${userId}`,
   FEELINGS_USER:(userId:string) => `/feelings/${userId}`,
   LOGIN: '/persons/authenticate'

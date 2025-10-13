@@ -4,6 +4,7 @@ import { Search } from "lucide-react-native";
 import React, { useState } from "react";
 import { FlatList, Image, ImageBackground, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
+import { useUser } from "../../../context/UserContext";
   export interface Professional {
 
   name: string;
@@ -20,7 +21,7 @@ import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
     
     const [nameProf, setNameProf] = useState('');
     const [profissionais, setProfissionais] = useState([]); 
-   
+   const { userId } = useUser();
     const [professionals, setProfessionals] = useState<Professional[]>([])
     const router = useRouter();
 

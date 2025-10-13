@@ -20,6 +20,7 @@ import {
     View
 } from "react-native";
 import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
+import { useUser } from "../../../context/UserContext";
 
 
 export default function Perfil() {
@@ -27,19 +28,26 @@ export default function Perfil() {
     const [qtdeMetas, setQtdeMetas] = useState(0)
     const [name, setName] = useState('')
     const [adress, setAdress] = useState('')
+    const { userId } = useUser();
 
     async function loadLastFeeling() {
-        const userId = '4765ab60-785f-4215-942e-22d9535bd877';
+
 
         try {
+            console.log("🔍 userId:", userId);
             const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER_DETAILS(userId)}`);
             const dados = response.data;
 
+            const feeling = dados.profile.lastFeeling
             // Agora pegamos os dados dentro de profile
-            setLastFeeling(dados.profile.lastFeeling);
+            setLastFeeling(feeling);
             setQtdeMetas(dados.profile.countExecutedGoals);
             setName(dados.profile.nameUser)
-            setAdress(`${dados.profile.cityAndUf.city} - ${dados.profile.cityAndUf.uf}`);
+            const city = dados.profile.cityAndUf.city;
+            const uf = dados.profile.cityAndUf.uf;
+            setAdress(city === 'N/A' && uf === 'N/A' ? 'Não cadastrado' : `${city} - ${uf}`);
+
+           
         } catch (error) {
             console.log("Erro ao carregar último sentimento:", error);
         }
@@ -79,7 +87,7 @@ export default function Perfil() {
                     <Text style={styles.nome}>{name}</Text>
                     <View style={styles.locationContainer}>
                         <MapPin size={16} color={"#555"} />
-                        <Text style={styles.locationText}>{adress}</Text>
+                        <Text style={styles.locationText}>{adress ? adress : 'Não cadastrado'}</Text>
                     </View>
                     <TouchableOpacity style={styles.editButton} onPress={() => router.replace('/pages/Perfil/editPerfil')}>
                         <Text style={styles.editButtonText}>Editar Perfil</Text>
@@ -92,7 +100,12 @@ export default function Perfil() {
                         </View>
                         <View style={styles.card}>
                             <Text style={styles.cardLabel}>Último humor</Text>
-                            <Text style={styles.cardValue}>{lastFeeling || "Nenhum"}</Text>
+                            <Text style={styles.cardValue}>
+                                {lastFeeling && (lastFeeling.toUpperCase() === 'NÃO_SEI_DIZER' || lastFeeling.toUpperCase() === 'NAO_SEI_DIZER')
+                                    ? 'Neutro'
+                                    : lastFeeling || 'Neutro'}
+                            </Text>
+
                         </View>
                     </View>
                 </View>

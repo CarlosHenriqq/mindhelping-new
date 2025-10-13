@@ -33,6 +33,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="mindhelping"/>
+        <data android:scheme="exp+mindhelping"/>
       </intent-filter>
     </activity>
   </application>

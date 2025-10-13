@@ -6,11 +6,13 @@ import { ChevronLeft } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
-import FeelingsChart from "../../../../components/feelingCharts";
+import FeelingsChart from "../../../components/feelingCharts";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
+import { useUser } from '../../../context/UserContext';
 
 const Analystic = () => {
   const navigation = useNavigation();
+  const { userId } = useUser();
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [feelingDataForChart, setFeelingDataForChart] = useState([]);
   const [maxValue, setMaxValue] = useState(1);
@@ -33,7 +35,7 @@ const Analystic = () => {
   ];
 
   const fetchFeelings = async (date) => {
-    const userId = '4765ab60-785f-4215-942e-22d9535bd877';
+   
     if (!userId) return;
 
     const formattedDate = date.toISOString().split('T')[0];
@@ -122,17 +124,24 @@ const Analystic = () => {
               <Text style={styles.modalTitle}>Motivos dos sentimentos</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {feelingsList.length > 0 ? (
-                  feelingsList.map((f, index) => (
-                    <View key={index} style={styles.motiveItem}>
-                      <Text style={{ color: feelingColors[f.description], fontWeight: 'bold', fontSize: 16 }}>
-                        {f.description}
+                  Object.entries(feelingsList.reduce((acc, f) => {
+                    if (!acc[f.description]) acc[f.description] = [];
+                    if (f.motive) acc[f.description].push(f.motive);
+                    return acc;
+                  }, {})).map(([feeling, motives], index) => (
+                    <View key={index} style={{ marginBottom: 10 }}>
+                      <Text style={{ color: feelingColors[feeling], fontWeight: 'bold', fontSize: 16 }}>
+                        {feeling}
                       </Text>
-                      <Text style={{ fontSize: 14, marginTop: 2 }}>{f.motive}</Text>
+                      {motives.map((motive, idx) => (
+                        <Text key={idx} style={{ fontSize: 14, marginLeft: 10, marginTop: 2 }}>• {motive}</Text>
+                      ))}
                     </View>
                   ))
                 ) : (
                   <Text style={{ textAlign: 'center', marginTop: 10 }}>Nenhum sentimento registrado nesse dia.</Text>
                 )}
+
               </ScrollView>
               <TouchableOpacity style={styles.buttonCloseModal} onPress={() => setModalVisible(false)}>
                 <Text style={styles.buttonText}>Fechar</Text>
@@ -241,11 +250,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#454849ff',
+
     alignSelf: 'center'
   },
   buttonText: {
-    color: 'white',
+    color: '#000000',
+    textDecorationLine: 'underline',
     fontWeight: 'bold',
     fontFamily: 'Nunito',
     textAlign: 'center'
@@ -273,10 +283,14 @@ const styles = StyleSheet.create({
     marginTop: 15,
     padding: 10,
     borderRadius: 10,
-    backgroundColor: '#454849ff',
+
     width: 100,
     alignItems: 'center',
     alignSelf: 'center'
+  },
+  modalTitle: {
+    marginBottom: '5%',
+    fontWeight: 'bold'
   },
   buttonMonthlyReport: {
     height: 40,

@@ -107,9 +107,10 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     header: {
+        marginTop: '5%',
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: '5%',
     },
     backButton: {
         flexDirection: 'row',

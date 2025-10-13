@@ -6,8 +6,10 @@ import React, { useCallback, useState } from "react";
 import { FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
 import * as Animatable from "react-native-animatable";
 import { Calendar, CalendarProvider, LocaleConfig } from 'react-native-calendars';
+import { useUser } from "../../../context/UserContext";
 
 export default function Diario() {
+    const { userId } = useUser();
     const [anotacoes, setAnotacoes] = useState([]);
     const [visibleDate, setVisibleDate] = useState(new Date());
     const [searchText, setSearchText] = useState('');

@@ -8,6 +8,11 @@
     "scheme": "mindhelping",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mindHelping",
@@ -21,7 +26,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.carloshenriqque.MindHelping"
+      "package": "com.carloshenriqque.MindHelping",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",

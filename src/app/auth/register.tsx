@@ -16,7 +16,7 @@ import {
     View
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
-import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
+import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 import { isValidEmail, isValidPassword } from '../../validators/validator';
 
 

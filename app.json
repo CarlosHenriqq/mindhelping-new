@@ -45,7 +45,7 @@
     "permissions": [
       "android.permission.CALL_PHONE"
     ],
-    "notification": {
+    "notifications": {
       "icon": "./assets/icon.png",
       "color": "#2980B9",
       "androidMode": "default"

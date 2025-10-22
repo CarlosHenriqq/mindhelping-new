@@ -1,171 +1,190 @@
+import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import { Alert, Platform } from 'react-native';
+import { API_BASE_URL, ENDPOINTS } from '../config/api';
 
-// Configura como o app se comporta ao receber uma notificação com o app aberto
+// Configura o app para mostrar notificação mesmo com app aberto
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-    }),
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
 });
 
-// Função para registrar o dispositivo e pedir permissões
+// ------------------------
+// Função para registrar permissão
+// ------------------------
 async function registerForPushNotificationsAsync() {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-        Alert.alert('Permissão negada', 'Você precisa habilitar as notificações para receber lembretes!');
-        return false;
-    }
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== 'granted') {
+    Alert.alert(
+      'Permissão negada',
+      'Você precisa habilitar as notificações para receber lembretes!'
+    );
+    return false;
+  }
 
-    if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-            name: 'Lembretes Diários',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-        });
-    }
-    
-    return true;
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Lembretes',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+  }
+
+  return true;
 }
 
-// 1. Função para agendar o lembrete diário
-/**
- * Envia uma notificação para o usuário, lembrando para ele registrar o sentimento.
- */
-export async function scheduleDailyReminderNotification() {
-    const hasPermission = await registerForPushNotificationsAsync();
-    if (!hasPermission) return;
-
-    const identifier = 'daily-feeling-reminder';
-
-    // Cancela apenas a notificação anterior com o mesmo identificador
+// ------------------------
+// Função genérica para agendar notificações
+// ------------------------
+async function scheduleNotification(identifier: string, content: any, trigger: any) {
+  try {
     await Notifications.cancelScheduledNotificationAsync(identifier);
-
-    await Notifications.scheduleNotificationAsync({
-        identifier: identifier, // <-- IDENTIFICADOR ÚNICO
-        content: {
-            title: "Como você está se sentindo agora? 🤔",
-            body: 'Não se esqueça de registrar seu sentimento. Leva só um segundo!',
-            data: { screen: 'Home' },
-        },
-        trigger: {
-            hour: 20,
-            minute: 0,
-            repeats: true,
-        },
-    });
-
+    await Notifications.scheduleNotificationAsync({ identifier, content, trigger });
     console.log(`Notificação '${identifier}' agendada com sucesso.`);
+  } catch (err) {
+    console.error(`Erro ao agendar notificação '${identifier}':`, err);
+  }
 }
 
-// 2. NOVA FUNÇÃO DE EXEMPLO: Lembrete semanal
-/**
- * Envia uma notificação para o usuário, falando que o relatório está pronto
- */
-export async function scheduleWeeklyReportNotification() {
-    const hasPermission = await registerForPushNotificationsAsync();
-    if (!hasPermission) return;
+// ------------------------
+// Notificação diária: sentimento
+// ------------------------
+async function dailyFeelingReminder(userId: string) {
+  const hasPermission = await registerForPushNotificationsAsync();
+  if (!hasPermission) return;
 
-    const identifier = 'weekly-report-reminder';
+  try {
+    const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER_FEELINGS(userId)}`);
+    const today = new Date().toISOString().split('T')[0];
+    const hasFeelingToday = response.data.some(
+      (f: any) => f.date.split('T')[0] === today
+    );
 
-    // Cancela apenas a notificação anterior com o mesmo identificador
-    await Notifications.cancelScheduledNotificationAsync(identifier);
+    if (hasFeelingToday) return;
 
-    await Notifications.scheduleNotificationAsync({
-        identifier: identifier, // <-- OUTRO IDENTIFICADOR ÚNICO
-        content: {
-            title: "Seu relatório semanal está pronto! 📊",
-            body: 'Veja um resumo de como foi sua semana e seus sentimentos.',
-            data: { screen: 'Relatorios' }, // Leva para outra tela
-        },
-        trigger: {
-            hour: 20,
-            minute: 0,
-            repeats: true,
-        },
-    });
-
-    console.log(`Notificação '${identifier}' relatorio com sucesso.`);
-}
-/**
- * Envia uma notificação para o usuário, lembrando para ele realizar a meta.
- */
-export async function goalsWeeklyNotification() {
-    const hasPermission = await registerForPushNotificationsAsync();
-    if (!hasPermission) return;
-
-    const identifier = 'goals-reminder';
-
-    // Cancela apenas a notificação anterior com o mesmo identificador
-    await Notifications.cancelScheduledNotificationAsync(identifier);
-
-    await Notifications.scheduleNotificationAsync({
-        identifier: identifier, // <-- OUTRO IDENTIFICADOR ÚNICO
-        content: {
-            title: "Você já realizou sua meta hoje? Não se esqueça de marcar no app!",
-            body: 'Não deixe de concluir suas metas, você consegue.',
-            data: { screen: 'Charts' }, // Leva para outra tela
-        },
-        trigger: {
-            hour: 20,
-            minute: 0,
-            repeats: true,
-        },
-    });
-
-    console.log(`Notificação '${identifier}' meta com sucesso.`);
+    await scheduleNotification(
+      'daily-feeling-reminder',
+      {
+        title: "Como você está se sentindo hoje? 🤔",
+        body: "Não se esqueça de registrar seu sentimento!",
+        data: { screen: 'Home' },
+      },
+      { hour: 20, minute: 0, repeats: true }
+    );
+  } catch (err) {
+    console.error('Erro ao verificar sentimentos:', err);
+  }
 }
 
-// 3. NOVA FUNÇÃO: Lembrete de consulta agendada com variáveis
-/**
- * Agenda um lembrete para uma consulta específica, 1 hora antes do horário marcado.
- * @param {object} appointmentDetails - Um objeto contendo os detalhes da consulta.
- * @param {string} appointmentDetails.id - Um ID único para a consulta (ex: "consulta-123").
- * @param {string} appointmentDetails.professionalName - O nome do profissional (ex: "Dra. Alessandra").
- * @param {Date} appointmentDetails.date - O objeto Date completo da consulta (ex: new Date("2024-10-15T16:00:00")).
- */
-export async function scheduleAppointmentReminder(appointmentDetails) {
-    const hasPermission = await registerForPushNotificationsAsync();
-    if (!hasPermission) return;
+// ------------------------
+// Notificação diária: metas
+// ------------------------
+async function dailyGoalsReminder(userId: string) {
+  const hasPermission = await registerForPushNotificationsAsync();
+  if (!hasPermission) return;
 
-    const { id, professionalName, date } = appointmentDetails;
+  try {
+    const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userId)}`);
+    const today = new Date().toISOString().split('T')[0];
 
-    // Cria um identificador único para esta consulta específica
-    const identifier = `appointment-reminder-${id}`;
+    const pendingGoals = response.data.filter((goal: any) =>
+      !goal.executions.some((exec: any) => exec.date.split('T')[0] === today)
+    );
 
-    // Calcula a data do lembrete (1 hora antes da consulta)
-    const reminderDate = new Date(date.getTime() - 60 * 60 * 1000);
+    if (pendingGoals.length === 0) return;
 
-    // Verifica se a data do lembrete ainda está no futuro
-    if (reminderDate < new Date()) {
-        console.log(`A data do lembrete para a consulta '${id}' já passou. Nenhuma notificação será agendada.`);
-        return;
-    }
-
-    // Formata a hora da consulta para a mensagem
-    const appointmentTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-    // Cancela qualquer lembrete anterior para esta mesma consulta
-    await Notifications.cancelScheduledNotificationAsync(identifier);
-
-    // Agenda a nova notificação
-    await Notifications.scheduleNotificationAsync({
-        identifier: identifier,
-        content: {
-            title: "Lembrete de Consulta ⏰",
-            body: `Sua consulta com ${professionalName} é hoje às ${appointmentTime}!`,
-            data: { screen: 'Home' }, // Pode direcionar para uma tela de agendamentos
-        },
-        trigger: {
-            date: reminderDate, // Dispara na data e hora exatas calculadas
-        },
-    });
-
-    console.log(`Lembrete para a consulta '${id}' agendado para ${reminderDate.toLocaleString('pt-BR')}.`);
+    await scheduleNotification(
+      'daily-goals-reminder',
+      {
+        title: "Você já realizou sua meta hoje?",
+        body: "Não deixe de concluir suas metas, você consegue!",
+        data: { screen: 'Charts' },
+      },
+      { hour: 20, minute: 0, repeats: true }
+    );
+  } catch (err) {
+    console.error('Erro ao verificar metas:', err);
+  }
 }
 
+// ------------------------
+// Notificação mensal: relatório
+// ------------------------
+async function monthlyReportReminder(userId: string) {
+  const hasPermission = await registerForPushNotificationsAsync();
+  if (!hasPermission) return;
 
+  const now = new Date();
+  const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
+  if (now.getDate() !== lastDayOfMonth) return;
 
+  await scheduleNotification(
+    'monthly-report-reminder',
+    {
+      title: "Seu relatório mensal está pronto! 📊",
+      body: "Confira como foi seu mês e seus sentimentos!",
+      data: { screen: 'Relatorios' },
+    },
+    { hour: 20, minute: 0, repeats: false }
+  );
+}
+
+// ------------------------
+// Notificação de consulta agendada
+// ------------------------
+export async function scheduleAppointmentReminder(appointmentDetails: any) {
+  const hasPermission = await registerForPushNotificationsAsync();
+  if (!hasPermission) return;
+
+  const { id, professionalName, date } = appointmentDetails;
+  const identifier = `appointment-reminder-${id}`;
+  const reminderDate = new Date(date.getTime() - 60 * 60 * 1000);
+
+  if (reminderDate < new Date()) return;
+
+  const appointmentTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  await scheduleNotification(
+    identifier,
+    {
+      title: "Lembrete de Consulta ⏰",
+      body: `Sua consulta com ${professionalName} é hoje às ${appointmentTime}!`,
+      data: { screen: 'Home' },
+    },
+    { date: reminderDate }
+  );
+}
+
+// ------------------------
+// Função central: agenda todas as notificações
+// ------------------------
+export async function scheduleAllNotifications(userId: string) {
+  await dailyFeelingReminder(userId);
+  await dailyGoalsReminder(userId);
+  await monthlyReportReminder(userId);
+  // consultas você chama scheduleAppointmentReminder separadamente para cada agendamento
+}
+
+// ------------------------
+// 🔥 Função de teste: dispara notificação em 10 segundos
+// ------------------------
+export async function testNotification() {
+  const hasPermission = await registerForPushNotificationsAsync();
+  if (!hasPermission) return;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "🚀 Teste de Notificação",
+      body: "Se você está vendo isso, está tudo funcionando! 😄",
+      data: { screen: 'Home' },
+    },
+    trigger: { seconds: 10 }, // dispara em 10 segundos
+  });
+
+  console.log("✅ Notificação de teste agendada!");
+}

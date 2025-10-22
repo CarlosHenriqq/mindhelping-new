@@ -1,17 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
+import * as FileSystem from "expo-file-system/legacy";
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
+import FotoPerfil from '../../../../assets/mascote.svg';
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from '../../../context/UserContext';
-import {
-    goalsWeeklyNotification, scheduleAppointmentReminder, scheduleDailyReminderNotification, scheduleWeeklyReportNotification
-} from '../../../services/notificationService';
-
 const width = Dimensions.get('window').width;
 const height = Dimensions.get('window').height;
 
@@ -66,7 +64,8 @@ export default function Home() {
     ]);
 
     const [userName, setUserName] = useState('Carlos');
-   const { userId } = useUser();
+    const { userId } = useUser();
+    const [userPhoto, setUserPhoto] = useState(null);
 
     const [modalSelected, setModalSelect] = useState(false);
     const [inputText, setInputText] = useState('');
@@ -76,8 +75,6 @@ export default function Home() {
     const [nextAppointment, setNextAppointment] = useState(null);
 
     const fetchNextAppointment = async () => {
-       
-
         if (!userId) {
             console.log("ID do usuário não encontrado. Não é possível buscar agendamento.");
             return null;
@@ -86,10 +83,7 @@ export default function Home() {
         try {
             const response = await fetch(`${API_BASE_URL}${ENDPOINTS.SCHEDULING_USER(userId)}`, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer ${token}`, // se precisar autenticação
-                },
+                headers: { 'Content-Type': 'application/json' },
             });
 
             if (!response.ok) {
@@ -104,10 +98,19 @@ export default function Home() {
 
             if (apiResponse && apiResponse.schedulingDetails) {
                 const details = apiResponse.schedulingDetails;
+                const appointmentDate = new Date(details.date);
+
+                // 🔹 Verifica se a data já passou
+                const now = new Date();
+                if (appointmentDate < now) {
+                    console.log("Agendamento já passou. Ignorando.");
+                    return null;
+                }
+
                 return {
                     id: details.id,
                     professionalName: details.nameProfessional,
-                    date: new Date(details.date),
+                    date: appointmentDate,
                     title: 'Psicólogo(a)',
                     phone: details.phoneProfessional,
                     email: details.emailProfessional,
@@ -123,44 +126,29 @@ export default function Home() {
     };
 
 
-    useEffect(() => {
-  // roda apenas uma vez para registrar notificações gerais
-  scheduleDailyReminderNotification();
-  goalsWeeklyNotification();
-  scheduleWeeklyReportNotification();
-}, []);
+    useFocusEffect(
 
-useFocusEffect(
-  useCallback(() => {
-    const loadAppointmentData = async () => {
-      const appointmentData = await fetchNextAppointment();
-      setNextAppointment(prev => {
-        if (JSON.stringify(prev) === JSON.stringify(appointmentData)) return prev;
-        return appointmentData;
-      });
-      if (appointmentData) {
-        scheduleAppointmentReminder(appointmentData);
-      }
-    };
+        useCallback(() => {
+            const loadAppointmentData = async () => {
+                const appointmentData = await fetchNextAppointment();
+                setNextAppointment(prev => {
+                    if (JSON.stringify(prev) === JSON.stringify(appointmentData)) return prev;
+                    return appointmentData;
+                });
+            };
+            loadAppointmentData();
+            loadLocalPhoto()
+            return () => {
+                console.log("Saindo da tela Home");
+            };
+        }, [userId])
+    );
 
-    loadAppointmentData();
-
-    return () => {
-      console.log("Saindo da tela Home");
-    };
-  }, [userId])
-);
-
-
-
-    // --- Função modificada para não usar o banco de dados ---
-    const registerFeelingWithTime = (feeling:string) => {
+    const registerFeelingWithTime = (feeling: string) => {
         console.log(`Sentimento selecionado: ${feeling}`);
         setSelectedFeelingIndex(feelings.findIndex(f => f.text === feeling)); // guarda o índice do sentimento
         setModalSelect(true);
     };
-
-    // --- Função desativada ---
     const salvarTexto = async () => {
         const feeling = feelings[selectedFeelingIndex].text;
         const motiveToSend = inputText.trim() ? inputText : "sem motivo";
@@ -185,6 +173,35 @@ useFocusEffect(
         setIsTipsModalVisible(true);
     };
 
+    const loadLocalPhoto = async () => {
+        try {
+            const dir = `${FileSystem.documentDirectory}profile/`;
+            const fileUri = `${dir}user_photo.jpg`;
+
+            // garante que a pasta exista
+            const dirInfo = await FileSystem.getInfoAsync(dir);
+            if (!dirInfo.exists) {
+                await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+            }
+
+            const fileInfo = await FileSystem.getInfoAsync(fileUri);
+            if (fileInfo.exists) {
+                setUserPhoto(fileUri);
+            } else {
+                console.log("Foto local não encontrada");
+            }
+        } catch (err) {
+            console.error("Erro ao carregar imagem local:", err);
+        }
+    };
+
+    // useEffect só para carregar na primeira vez
+    useEffect(() => {
+        loadLocalPhoto();
+    }, []);
+
+
+
     return (
         <View style={{ flex: 1 }}>
             <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
@@ -197,7 +214,13 @@ useFocusEffect(
                                     <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
                                 </View>
                                 <TouchableOpacity onPress={() => router.replace('/pages/Perfil')}>
-                                    <Image source={{ uri: "https://i.pravatar.cc/150?img=38" }} style={styles.foto} />
+                                    {userPhoto ? (
+                                        <Image source={{ uri: userPhoto }} style={styles.foto} />
+                                    ) : (
+                                        <View style={styles.foto}>
+                                            <FotoPerfil width={94} height={94} />
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -265,7 +288,7 @@ useFocusEffect(
                         </View>
                         <View>
                             <TouchableOpacity onPress={() => router.replace('/pages/Agendamento')} style={styles.searchProf}>
-                                <Text style={{fontWeight:700, color:'#ffffff'}}>Buscar Profissionais</Text>
+                                <Text style={{ fontWeight: 700, color: '#ffffff' }}>Buscar Profissionais</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -346,7 +369,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontFamily: 'Roboto-Regular',
         top: 5,
-        marginBottom:'2%'
+        marginBottom: '2%'
     },
     foto: {
         width: 50,
@@ -495,8 +518,8 @@ const styles = StyleSheet.create({
     },
     searchProf: {
         marginTop: '5%',
-        marginLeft:'5%',
-        
+        marginLeft: '5%',
+
         borderColor: '#000000',
         width: '50%',
         padding: 10,

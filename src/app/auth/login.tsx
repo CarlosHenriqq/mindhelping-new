@@ -42,6 +42,7 @@ export default function Login() {
             setUserId(id);
             if (toggleCheck) {
                 await AsyncStorage.setItem('userId', id);
+                console.log('Salvou no Async')
             }
             router.push('/pages/Home');
         } catch (error: any) {

@@ -1,44 +1,32 @@
-import { LinearGradient } from "expo-linear-gradient"; // <-- 1. CORREÇÃO CRÍTICA
-import {
-    Calendar,
-    Camera,
-    ChevronDown,
-    ChevronUp,
-    IdCard,
-    Mail,
-    MapPin,
-    Phone,
-    User
-} from "lucide-react-native";
-import { useState } from "react";
-import {
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from "react-native";
+import axios from "axios";
+import * as FileSystem from "expo-file-system/legacy";
+import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
+import { Calendar, Camera, ChevronDown, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
+import { useEffect, useState } from "react";
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
+import FotoPerfil from '../../../../../assets/mascote.svg';
+import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
+import { useUser } from "../../../../context/UserContext";
 
 export default function EditPerfil() {
-    const [name, setName] = useState("Juliana Alves da Silva");
-    const [birthDate, setBirthDate] = useState("01/01/2000");
-    const [phone, setPhone] = useState("(18) 99999-9999");
-    const [email, setEmail] = useState("julianaalves@gmail.com");
-    const [cpf, setCPF] = useState("000.000.000-00");
-    const [cep, setCep] = useState("16000-201");
-    const [endereco, setEndereco] = useState("Rua das palmeiras");
-    const [numero, setNumero] = useState("2011");
-    const [bairro, setBairro] = useState("Centro");
-    const [cidade, setCidade] = useState("Birigui");
-
+    const { userId } = useUser();
+    const [userData, setUserData] = useState(null)
+    const [userPhoto, setUserPhoto] = useState(null);
+    const [name, setName] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');
+    const [cpf, setCPF] = useState('');
+    const [cep, setCep] = useState('');
+    const [endereco, setEndereco] = useState('');
+    const [numero, setNumero] = useState('');
+    const [bairro, setBairro] = useState('');
+    const [cidade, setCidade] = useState('');
     // Estado para o Dropdown
     const [open, setOpen] = useState(false);
-    const [gender, setGender] = useState("cisf");
+    const [gender, setGender] = useState('');
     const [genderItem, setGenderItem] = useState([
         { label: "Homem cisgênero", value: "cism" },
         { label: "Mulher cisgênero", value: "cisf" },
@@ -48,6 +36,132 @@ export default function EditPerfil() {
         { label: "Travesti", value: "travest" },
         { label: "Prefiro não dizer", value: "naodizer" },
     ]);
+
+
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId)}`, {
+
+                });
+                const data = response.data.user;
+                setUserData(data);
+
+                // popular os states do formulário
+                setName(data.name);
+                setBirthDate(new Date(data.birthDate).toLocaleDateString());
+                setPhone(data.phone);
+                setEmail(data.email);
+                setCPF(data.cpf);
+                setGender(data.gender);
+                setEndereco(data.address?.street || "");
+                setNumero(data.address?.number?.toString() || "");
+                setBairro(data.address?.neighborhood || "");
+                setCidade(data.address?.city || "");
+                setCep(data.address?.cep || "");
+            } catch (error) {
+                console.error("Erro ao buscar usuário:", error.response || error.message);
+            }
+        };
+
+        fetchUser();
+    }, []);
+    useEffect(() => {
+        const loadLocalPhoto = async () => {
+            try {
+                const fileUri = `${FileSystem.documentDirectory}profile/user_photo.jpg`;
+                const fileInfo = await FileSystem.getInfoAsync(fileUri);
+
+                if (fileInfo.exists) {
+                    setUserPhoto(fileUri);
+                } else {
+                    console.log("Foto local não encontrada");
+                }
+            } catch (err) {
+                console.error("Erro ao carregar imagem local:", err);
+            }
+        };
+
+        loadLocalPhoto();
+    }, []);
+
+    const handleSaveProfile = async () => {
+        try {
+            const payload = {
+                name,
+                cpf,
+                address: endereco,
+                neighborhood: bairro,
+                number: parseInt(numero) || 0,
+                complement: '',
+                cep,
+                city: cidade,
+                uf: 'SP',
+                phone,
+                email,
+                gender,
+            };
+
+            const response = await axios.patch(
+                `${API_BASE_URL}${ENDPOINTS.USER(userId)}`,
+                payload
+            );
+
+            console.log('Perfil atualizado:', response.data);
+            alert('Perfil atualizado com sucesso!');
+        } catch (error: any) {
+            console.error('Erro ao atualizar perfil:', error.response || error.message);
+            alert('Erro ao atualizar perfil. Tente novamente.');
+        }
+    };
+    const handleChangePhoto = async () => {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (!permissionResult.granted) {
+            alert("Permissão para acessar a galeria é necessária!");
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 1,
+        });
+
+        if (!result.canceled) {
+            const sourceUri = result.assets[0].uri;
+
+            try {
+                // cria uma pasta específica no armazenamento interno
+                const dir = `${FileSystem.documentDirectory}profile/`;
+                const fileUri = `${dir}user_photo.jpg`; // sempre o mesmo nome
+
+                // garante que a pasta exista
+                const dirInfo = await FileSystem.getInfoAsync(dir);
+                if (!dirInfo.exists) {
+                    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+                }
+
+                // copia ou sobrescreve a imagem escolhida
+                await FileSystem.copyAsync({
+                    from: sourceUri,
+                    to: fileUri,
+                });
+
+                setUserPhoto(fileUri);
+                alert("Foto de perfil atualizada!");
+            } catch (err) {
+                console.error("Erro ao salvar a imagem localmente:", err);
+                alert("Erro ao salvar imagem.");
+            }
+        }
+    };
+
+
+
+
 
     return (
         <LinearGradient
@@ -67,18 +181,24 @@ export default function EditPerfil() {
                     {/* Header Perfil */}
                     <View style={styles.headerContainer}>
                         <View style={styles.avatarContainer}>
-                            <Image
-                                source={{ uri: "https://i.pravatar.cc/150?img=38" }}
-                                style={styles.foto}
-                            />
+                            {userPhoto ? (
+                                <Image source={{ uri: userPhoto }} style={styles.foto} />
+                            ) : (
+                                <View style={styles.foto}>
+                                    <FotoPerfil width={94} height={94} /> {/* 100 - 3px de borda de cada lado */}
+                                </View>
+                            )}
+
+
                             <TouchableOpacity
                                 style={styles.editFotoButton}
-                                onPress={() => console.log("Trocar foto")}
+                                onPress={handleChangePhoto}
                             >
                                 <Camera size={16} color="#fff" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.nome}>Juliana Alves</Text>
+
+                        <Text style={styles.nome}>{name}</Text>
                         <View style={styles.locationContainer}>
                             <MapPin size={16} color={"#4b5563"} />
                             <Text style={styles.locationText}>Birigui - São Paulo</Text>
@@ -161,7 +281,7 @@ export default function EditPerfil() {
                         />
 
                         <View style={styles.inputWrapper}>
-                             <MapPin color="#3386BC" size={20} style={styles.icon} />
+                            <MapPin color="#3386BC" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="Endereço"
                                 style={styles.input}
@@ -211,7 +331,7 @@ export default function EditPerfil() {
                         </View>
 
                         <View style={styles.buttonContainer}>
-                            <TouchableOpacity style={[styles.button, styles.saveButton]}>
+                            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSaveProfile}>
                                 <Text style={styles.buttonText}>Salvar alterações</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={[styles.button, styles.deleteButton]}>
@@ -232,7 +352,7 @@ const styles = StyleSheet.create({
     scrollContainer: {
         paddingHorizontal: 20,
         paddingBottom: 40,
-        marginTop:'10%'
+        marginTop: '10%'
     },
     headerContainer: {
         alignItems: "center",

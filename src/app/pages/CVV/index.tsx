@@ -1,56 +1,177 @@
+import axios from 'axios';
 import { router } from 'expo-router';
 import { ChevronLeft, Phone } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   Image,
-  PermissionsAndroid,
+  Linking,
   Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
-import ImmediatePhoneCall from 'react-native-immediate-phone-call';
+import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
+import { useUser } from '../../../context/UserContext';
 
 const Call = () => {
-  // 1. Hook useFocusEffect para o modo imersivo
-  // É mais adequado para efeitos visuais que devem ser aplicados/removidos quando a tela ganha/perde foco.
- ImmediatePhoneCall.immediatePhoneCall('188');
+  const { userId } = useUser();
+  const callStartTime = useRef<Date | null>(null);
+  const backgroundTime = useRef<Date | null>(null); // ← NOVO: Marca quando foi pro background
+  const appState = useRef(AppState.currentState);
+  const [isCallInProgress, setIsCallInProgress] = useState(false);
 
+  // Monitora mudanças no estado do app (background/foreground)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      console.log(`[CVV] 🔄 AppState mudou de "${appState.current}" para "${nextAppState}"`);
 
-  // 2. Função para realizar a ligação
+      // Se o app foi pro BACKGROUND (ligação realmente começou)
+      if (nextAppState === 'background' && isCallInProgress) {
+        backgroundTime.current = new Date(); // ← MARCA O TEMPO REAL DA LIGAÇÃO
+        console.log('[CVV] 📴 App foi pro BACKGROUND (usuário está em ligação)');
+        console.log(`[CVV] 🕐 Início REAL da ligação: ${backgroundTime.current.toLocaleTimeString('pt-BR')}`);
+      }
+
+      // Se o app estava no BACKGROUND e voltou pro foreground
+      if (appState.current === 'background' && nextAppState === 'active') {
+        console.log('[CVV] 📱 App voltou do BACKGROUND (ligação real)');
+
+        // Se havia uma ligação em andamento E temos o tempo do background
+        if (isCallInProgress && backgroundTime.current) {
+          const endTime = new Date();
+          const durationInSeconds = Math.floor(
+            (endTime.getTime() - backgroundTime.current.getTime()) / 1000
+          );
+
+          console.log('[CVV] 📞 Ligação finalizada');
+          console.log(`[CVV] ⏱️ Duração REAL estimada: ${durationInSeconds}s`);
+
+          // Usa o tempo do background como início da ligação
+          saveCallRecord(backgroundTime.current, endTime, durationInSeconds);
+
+          // Reseta o estado
+          setIsCallInProgress(false);
+          callStartTime.current = null;
+          backgroundTime.current = null;
+        }
+      }
+
+      // Se voltou apenas do inactive (discador iOS), ignora
+      if (appState.current === 'inactive' && nextAppState === 'active') {
+        console.log('[CVV] ⚠️ Voltou do inactive (só abriu o discador, ainda não ligou)');
+      }
+
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isCallInProgress]);
+
+  // Salva o registro no backend
+  async function saveCallRecord(startTime: Date, endTime: Date, durationSeconds: number) {
+    if (!userId) {
+      console.error('[CVV] ❌ Sem userId para salvar registro');
+      return;
+    }
+
+    try {
+      // Formata a data como "YYYY-MM-DD"
+      const dateCalled = startTime.toISOString().split('T')[0];
+      
+      // Formata a DURAÇÃO como "HH:MM:SS"
+      const hours = Math.floor(durationSeconds / 3600);
+      const minutes = Math.floor((durationSeconds % 3600) / 60);
+      const seconds = durationSeconds % 60;
+      
+      const timeCalled = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+      const callData = {
+        dateCalled: dateCalled,  // "2025-10-22"
+        timeCalled: timeCalled   // "00:12:35" (duração)
+      };
+
+      console.log('[CVV] 💾 Salvando registro da ligação:', callData);
+      console.log(`[CVV] 📊 Duração: ${Math.floor(durationSeconds / 60)}min ${durationSeconds % 60}s`);
+
+      const response = await axios.post(
+        `${API_BASE_URL}${ENDPOINTS.CVV_CALLS(userId)}`, 
+        callData
+      );
+
+      console.log('[CVV] ✅ Registro salvo com sucesso:', response.data);
+      
+      // Mostra feedback pro usuário
+      Alert.alert(
+        'Ligação registrada',
+        `Duração: ${Math.floor(durationSeconds / 60)}min ${durationSeconds % 60}s`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('[CVV] ❌ Erro ao salvar registro:', error.response?.data || error.message);
+    }
+  }
+
+  // Função para realizar a ligação
   async function makePhoneCall() {
     const phoneNumber = '188'; // CVV
-
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CALL_PHONE
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert('Permissão Negada', 'Você precisa conceder permissão para fazer ligações.');
-          return;
-        }
-        console.log('talvez funcionou')
-      } catch (err) {
-        console.log(err);
-        return;
-      }
-    }
     
-    // Se a permissão foi concedida (ou se for iOS), faz a ligação.
-    ImmediatePhoneCall.immediatePhoneCall(phoneNumber);
+    const phoneURL = Platform.OS === 'ios' 
+      ? `telprompt:${phoneNumber}`
+      : `tel:${phoneNumber}`;
+
+    try {
+      const supported = await Linking.canOpenURL(phoneURL);
+      
+      if (supported) {
+        // Aguarda um pouquinho antes de marcar o início
+        // Para evitar que o AppState dispare antes do discador abrir
+        setTimeout(() => {
+          callStartTime.current = new Date();
+          setIsCallInProgress(true);
+          
+          console.log('[CVV] 📞 Ligação iniciada');
+          console.log(`[CVV] 🕐 Horário: ${callStartTime.current.toLocaleString('pt-BR')}`);
+        }, 500);
+        
+        await Linking.openURL(phoneURL);
+        
+        // Timeout de segurança: 5 minutos
+        setTimeout(() => {
+          if (isCallInProgress) {
+            console.log('[CVV] ⚠️ Timeout: resetando estado');
+            setIsCallInProgress(false);
+            callStartTime.current = null;
+          }
+        }, 300000); // 5 minutos
+        
+      } else {
+        Alert.alert(
+          'Não é possível ligar',
+          'Seu dispositivo não suporta ligações telefônicas.'
+        );
+      }
+    } catch (error) {
+      console.error('[CVV] ❌ Erro ao tentar ligar:', error);
+      Alert.alert(
+        'Erro',
+        'Não foi possível iniciar a ligação. Tente discar 188 manualmente.'
+      );
+      
+      setIsCallInProgress(false);
+      callStartTime.current = null;
+    }
   }
   
-  // 3. Função de navegação corrigida
   const handleGoBack = () => {
-    // No Expo Router, é mais comum usar `router.back()` para voltar.
-    // Se quiser ir para uma rota específica, use o caminho do arquivo, ex: '/home'
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/home'); // Rota de fallback
+      router.replace('/pages/Home');
     }
   };
 
@@ -78,9 +199,15 @@ const Call = () => {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.containerCall} onPress={makePhoneCall}>
+        <TouchableOpacity 
+          style={[styles.containerCall, isCallInProgress && styles.containerCallDisabled]} 
+          onPress={makePhoneCall}
+          disabled={isCallInProgress}
+        >
           <Phone color={'white'} size={24} />
-          <Text style={styles.callButtonText}>APERTE AQUI PARA LIGAR</Text>
+          <Text style={styles.callButtonText}>
+            {isCallInProgress ? 'LIGAÇÃO EM ANDAMENTO...' : 'APERTE AQUI PARA LIGAR'}
+          </Text>
         </TouchableOpacity>
         <Text style={styles.availabilityText}>Ligações disponíveis 24h</Text>
       </View>
@@ -94,7 +221,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    justifyContent: 'space-between', // Distribui o espaço
+    justifyContent: 'space-between',
   },
   header: {
     position: 'absolute',
@@ -116,29 +243,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    marginTop: -40, // Compensa o espaço do footer
+    marginTop: -40,
   },
   title: {
-    fontSize: 20,
+    marginTop: '20%',
+    fontSize: 18,
     fontFamily: 'Nunito',
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'Nunito',
     textAlign: 'center',
   },
   mainActionText: {
-    fontSize: 25,
+    fontSize: 22,
     marginTop: '10%',
     fontFamily: 'Nunito',
     fontWeight: 'bold',
   },
   imageContainer: {
-    width: '80%',
+    width: '70%',
     height: '45%',
-    marginTop: '5%',
+    marginTop: '-5%',
   },
   imagem: {
     width: '100%',
@@ -162,6 +290,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
   },
+  containerCallDisabled: {
+    backgroundColor: '#7CB9D4',
+    opacity: 0.7,
+  },
   callButtonText: {
     fontSize: 18,
     color: 'white',
@@ -170,8 +302,8 @@ const styles = StyleSheet.create({
   },
   availabilityText: {
     color: 'black',
-    marginTop: '5%',
+    marginBottom: '20%',
     fontFamily: 'Nunito',
-    fontSize:16
+    fontSize: 16,
   },
 });

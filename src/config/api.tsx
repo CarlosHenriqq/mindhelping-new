@@ -18,5 +18,6 @@ export const ENDPOINTS = {
   USER_DETAILS: (userId: string) => `/me/${userId}`,
   USER_UPDATE: (userId: string) => `/users/data-for-update/${userId}`,
   FEELINGS_USER:(userId:string) => `/feelings/${userId}`,
+  CVV_CALLS: (userId: string) => `/cvv-calls/${userId}`,
   LOGIN: '/persons/authenticate'
 };

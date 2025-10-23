@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Checkbox from 'expo-checkbox';
 import { useRouter } from "expo-router";
@@ -35,18 +34,31 @@ export default function Login() {
                 password: senha
             });
 
-            console.log('ENTROU', response.data);
+            // Certifique-se que o caminho no 'response.data' está correto
+            const id = response.data?.user?.userId; 
 
-            // Salva o userId no contexto global
-            const id = response.data.user.userId; // ajuste conforme o nome retornado pela API
-            setUserId(id);
-            if (toggleCheck) {
-                await AsyncStorage.setItem('userId', id);
-                console.log('Salvou no Async')
+            // ----- INÍCIO DO DEBUG -----
+            console.log("[LOGIN] Resposta completa da API:", JSON.stringify(response.data, null, 2));
+            console.log("[LOGIN] ID extraído da API:", id);
+            console.log("[LOGIN] Valor do 'Lembrar' (toggleCheck):", toggleCheck);
+            // ----- FIM DO DEBUG -----
+
+            if (!id) {
+                 Alert.alert("Erro de Login", "A API não retornou um ID de usuário.");
+                 setLoading(false);
+                 return;
             }
-            router.push('/pages/Home');
-        } catch (error: any) {
-            console.log(error);
+
+            // passa o "toggleCheck" pro contexto pra decidir se grava
+            await setUserId(id, toggleCheck);
+            
+            // Use .replace() para "substituir" a tela de login na pilha de navegação.
+            // Isso impede que o usuário clique em "Voltar" e caia na tela de login
+            // depois de já estar logado.
+            router.replace('/pages/Home');
+
+        } catch (error) {
+            console.error("[LOGIN] Erro na requisição de login:", error.response?.data || error.message);
             Alert.alert("Erro", "Falha ao realizar login. Verifique suas credenciais.");
         } finally {
             setLoading(false);
@@ -128,6 +140,7 @@ export default function Login() {
     );
 };
 
+// ... Seus estilos (styles) permanecem os mesmos ...
 const styles = StyleSheet.create({
     gradientBackground: {
         flex: 1,

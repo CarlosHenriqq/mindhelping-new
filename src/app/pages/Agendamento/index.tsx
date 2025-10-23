@@ -117,8 +117,8 @@ import { useUser } from "../../../context/UserContext";
       backgroundColor: "#ededed",
       marginHorizontal: 16,
       marginVertical: 8,
-      padding: 16,
-      borderRadius: 12,
+      padding: 10,
+      borderRadius: 20,
       elevation: 3,
       alignItems: "center",
     },
@@ -129,7 +129,7 @@ import { useUser } from "../../../context/UserContext";
       
     },
     nome: {
-      fontSize: 18,
+      fontSize: 14,
       fontWeight: "bold",
     },
     info: {

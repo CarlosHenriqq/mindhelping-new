@@ -1,48 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Slot } from 'expo-router';
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { UserProvider, useUser } from '../context/UserContext';
-import { scheduleAllNotifications } from '../services/notificationService';
+import { UserProvider } from '../context/UserContext';
 
-function AppContent({ children }: { children: React.ReactNode }) {
-  const { userId } = useUser();
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function init() {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
-
-      const alreadyScheduled = await AsyncStorage.getItem('notificationsScheduled');
-
-      if (!alreadyScheduled) {
-        await scheduleAllNotifications(userId);
-        await AsyncStorage.setItem('notificationsScheduled', 'true');
-        console.log('📅 Notificações agendadas!');
-      }
-
-      setLoading(false);
-    }
-
-    init();
-  }, [userId]);
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#2980B9" />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
-}
+// ===== NÃO PRECISA MAIS DO AppContent! =====
+// A navegação vai ser controlada pelo index.tsx
 
 export default function Layout() {
   const [fontsLoaded] = useFonts({
@@ -72,9 +37,7 @@ export default function Layout() {
       />
 
       <UserProvider>
-        <AppContent>
-          <Slot />
-        </AppContent>
+        <Slot />
       </UserProvider>
     </GestureHandlerRootView>
   );

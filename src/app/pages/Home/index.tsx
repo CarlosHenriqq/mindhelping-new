@@ -64,7 +64,7 @@ export default function Home() {
     ]);
 
     const [userName, setUserName] = useState('Carlos');
-    const { userId } = useUser();
+    const { userId, loadingUser } = useUser();
     const [userPhoto, setUserPhoto] = useState(null);
 
     const [modalSelected, setModalSelect] = useState(false);
@@ -127,8 +127,10 @@ export default function Home() {
 
 
     useFocusEffect(
-
         useCallback(() => {
+            if (loadingUser) return; // espera usuário ser restaurado
+            if (!userId) return;      // se não existe, não faz nada
+
             const loadAppointmentData = async () => {
                 const appointmentData = await fetchNextAppointment();
                 setNextAppointment(prev => {
@@ -136,12 +138,12 @@ export default function Home() {
                     return appointmentData;
                 });
             };
+
             loadAppointmentData();
-            loadLocalPhoto()
-            return () => {
-                console.log("Saindo da tela Home");
-            };
-        }, [userId])
+            loadLocalPhoto();
+
+           
+        }, [userId, loadingUser])
     );
 
     const registerFeelingWithTime = (feeling: string) => {

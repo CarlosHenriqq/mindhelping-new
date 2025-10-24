@@ -246,7 +246,7 @@ export default function Diario() {
                     {/* ➕ Botão Nova Nota (Leva para NovaAnotacao) */}
                     <TouchableOpacity
                         style={styles.newMetaContainer}
-                        onPress={() => router.replace("/pages/Diario/Anotacoes")}
+                        onPress={() => router.push("/pages/Diario/Anotacoes")}
                     >
                         <Pencil color={'#000000'} size={24} />
                         {showAddHint && (

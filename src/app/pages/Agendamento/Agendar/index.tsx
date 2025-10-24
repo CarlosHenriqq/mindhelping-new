@@ -1,4 +1,5 @@
 import axios from "axios";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -168,8 +169,6 @@ export default function AgendarConsulta() {
   async function confirmScheduling() {
     if (!selectedDate || !hourSelected) return;
 
-
-
     const schedule = schedules.find((sch: any) =>
       sch.initialTime?.startsWith(selectedDate)
     );
@@ -180,6 +179,14 @@ export default function AgendarConsulta() {
     }
 
     try {
+      console.log("📤 Enviando agendamento:", {
+        professionalPersonId: id,
+        userPersonId: userId,
+        scheduleId: schedule.id,
+        hour: hourSelected,
+        date: selectedDate,
+      });
+
       const response = await axios.post(
         `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
         {
@@ -191,15 +198,25 @@ export default function AgendarConsulta() {
         }
       );
 
-      console.log("Agendamento realizado:", response.data);
-      alert("Agendamento realizado com sucesso!");
+      console.log("✅ Agendamento realizado:", response.data);
+
+      // 1. Fecha o modal
       setModalVisible(false);
 
-      // atualizar horários e vagas
+      // 2. Mostra sucesso
+      alert("Agendamento realizado com sucesso!");
+
+      // 3. Recarrega os horários do dia selecionado (REMOVE O HORÁRIO AGENDADO)
+      console.log("🔄 Recarregando horários do dia...");
+      await onDayPress({ dateString: selectedDate } as any);
+
+      // 4. Atualiza as agendas gerais (opcional, mas recomendado)
+      console.log("🔄 Atualizando lista de agendas...");
       await fetchSchedules();
-      onDayPress({ dateString: selectedDate } as any);
-    } catch (error) {
-      console.error("Erro ao agendar:", error);
+
+    } catch (error: any) {
+      console.error("❌ Erro ao agendar:", error);
+      console.error("❌ Response:", error.response?.data);
       alert("Erro ao tentar agendar. Tente novamente.");
     }
   }
@@ -231,102 +248,104 @@ export default function AgendarConsulta() {
 
 
   return (
-    <ScrollView bounces={false}>
-      <View style={styles.screen}>
-        <Text style={styles.title}>Agendamento de consulta</Text>
+    <View style={{ flex: 1 }}>
+      <LinearGradient colors={['#eff6ff', '#dbeafe']} style={{ flex: 1 }}>
+        <ScrollView
+          bounces={false}
+          contentContainerStyle={{ flexGrow: 1 }} // ← IMPORTANTE!
+        >
+          <View style={styles.screen}>
+            <Text style={styles.title}>Agendamento de consulta</Text>
 
-        {professional ? (
-          <View style={styles.card}>
-            <Image
-              source={{
-                uri: `https://i.pravatar.cc/150?u=${professional.email}`,
-              }}
-              style={styles.foto}
-            />
-            <View style={styles.infoContainer}>
-              <Text style={styles.name}>{professional.name}</Text>
-              <Text style={styles.infoText}>E-mail: {professional.email}</Text>
-              <Text style={styles.infoText}>Telefone: {professional.phone}</Text>
-              <Text style={styles.infoText}>
-                Endereço:{" "}
-                {`${professional.address}, ${professional.neighborhood}, ${professional.city} - ${professional.uf}`}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={{ marginTop: 20 }}>Carregando informações...</Text>
-        )}
-
-        {/* 📅 Calendário */}
-        <View style={styles.agendaContainer}>
-          <Calendar
-            onDayPress={onDayPress}
-            // Dia selecionado destacado em azul
-            markedDates={{
-              ...markedDates,
-              ...(selectedDate && {
-                [selectedDate]: {
-                  selected: true,
-                  selectedColor: "#2980B9",
-                  // Mantém o ponto verde se houver horários
-                  marked: markedDates[selectedDate]?.marked,
-                  dotColor: markedDates[selectedDate]?.dotColor || "green",
-                },
-              }),
-            }}
-            markingType="custom"
-            // Não mexer no current se não quiser mudar o mês inicial
-            current={visibleDate.toISOString().split('T')[0]}
-            renderHeader={(date) => {
-              const mes = meses[date.getMonth()];
-              const ano = date.getFullYear();
-              return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
-            }}
-            onMonthChange={(month) => {
-              setVisibleDate(new Date(month.dateString));
-            }}
-            theme={{
-              todayTextColor: "#2980B9",
-              arrowColor: "#2980B9",
-              textMonthFontSize: 20,
-              textMonthFontWeight: "bold",
-            }}
-            style={{ borderRadius: 20, padding: 10 }}
-          />
-
-
-
-          {/* Horários disponíveis */}
-          {selectedDate && (
-            <View style={{ marginTop: 20, flex: 1 }}>
-              <Text style={styles.subtitle}>
-                Horários em {formatDateBR(selectedDate)}:
-              </Text>
-              {horarios.length > 0 ? (
-                <FlatList
-                  scrollEnabled={false}
-                  data={horarios}
-                  keyExtractor={(item, index) => index.toString()}
-                  numColumns={3}
-                  columnWrapperStyle={{ justifyContent: "space-between" }}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.horaBtn}
-                      onPress={() => {
-                        setHourSelected(item);
-                        setModalVisible(true);
-                      }}
-                    >
-                      <Text style={styles.horaText}>{item}</Text>
-                    </TouchableOpacity>
-                  )}
+            {professional ? (
+              <View style={styles.card}>
+                <Image
+                  source={{
+                    uri: `https://i.pravatar.cc/150?u=${professional.email}`,
+                  }}
+                  style={styles.foto}
                 />
-              ) : (
-                <Text style={{ marginTop: 10 }}>Sem horários disponíveis</Text>
+                <View style={styles.infoContainer}>
+                  <Text style={styles.name}>{professional.name}</Text>
+                  <Text style={styles.infoText}>E-mail: {professional.email}</Text>
+                  <Text style={styles.infoText}>Telefone: {professional.phone}</Text>
+                  <Text style={styles.infoText}>
+                    Endereço:{" "}
+                    {`${professional.address}, ${professional.neighborhood}, ${professional.city} - ${professional.uf}`}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <Text style={{ marginTop: 20 }}>Carregando informações...</Text>
+            )}
+
+            {/* 📅 Calendário */}
+            <View style={styles.agendaContainer}>
+              <Calendar
+                onDayPress={onDayPress}
+                markedDates={{
+                  ...markedDates,
+                  ...(selectedDate && {
+                    [selectedDate]: {
+                      selected: true,
+                      selectedColor: "#2980B9",
+                      marked: markedDates[selectedDate]?.marked,
+                      dotColor: markedDates[selectedDate]?.dotColor || "green",
+                    },
+                  }),
+                }}
+                markingType="custom"
+                current={visibleDate.toISOString().split('T')[0]}
+                renderHeader={(date) => {
+                  const mes = meses[date.getMonth()];
+                  const ano = date.getFullYear();
+                  return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
+                }}
+                onMonthChange={(month) => {
+                  setVisibleDate(new Date(month.dateString));
+                }}
+                theme={{
+                  todayTextColor: "#2980B9",
+                  arrowColor: "#2980B9",
+                  textMonthFontSize: 20,
+                  textMonthFontWeight: "bold",
+                }}
+                style={{ borderRadius: 20, padding: 10 }}
+              />
+
+              {/* Horários disponíveis */}
+              {selectedDate && (
+                <View style={{ marginTop: 20, paddingBottom: 20 }}>
+                  <Text style={styles.subtitle}>
+                    Horários em {formatDateBR(selectedDate)}:
+                  </Text>
+                  {horarios.length > 0 ? (
+                    <FlatList
+                      scrollEnabled={false}
+                      data={horarios}
+                      keyExtractor={(item, index) => index.toString()}
+                      numColumns={3}
+                      columnWrapperStyle={{ justifyContent: "space-between" }}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={styles.horaBtn}
+                          onPress={() => {
+                            setHourSelected(item);
+                            setModalVisible(true);
+                          }}
+                        >
+                          <Text style={styles.horaText}>{item}</Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  ) : (
+                    <Text style={{ marginTop: 10 }}>Sem horários disponíveis</Text>
+                  )}
+                </View>
               )}
             </View>
-          )}
-        </View>
+          </View>
+        </ScrollView>
 
         {/* Modal de confirmação */}
         <Modal
@@ -360,16 +379,17 @@ export default function AgendarConsulta() {
             </View>
           </View>
         </Modal>
-      </View>
-    </ScrollView>
+      </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
-    flex: 1,
+    flex: 1, // ← Mantenha isso
     paddingTop: "20%",
     alignItems: "center",
+    paddingBottom: 20, // ← Adicione um padding no final
   },
   title: {
     fontSize: 22,
@@ -417,12 +437,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "transparent",
     width: "90%",
-    flex: 1,
-    shadowColor: "#000000",
-    shadowRadius: 10,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 5,
+    // REMOVA o flex: 1 daqui se tiver
+    marginBottom: 20, // ← Adicione margem no final
   },
   subtitle: {
     fontSize: 18,
@@ -439,7 +455,7 @@ const styles = StyleSheet.create({
     bottom: 3
   },
   horaBtn: {
-    backgroundColor: "#2980B9",
+    backgroundColor: "#4a78b4ff",
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 20,

@@ -142,7 +142,7 @@ export default function Home() {
             loadAppointmentData();
             loadLocalPhoto();
 
-           
+
         }, [userId, loadingUser])
     );
 
@@ -215,12 +215,12 @@ export default function Home() {
                                     <Text style={styles.userText}>Oi {userName},</Text>
                                     <Text style={styles.textFeeling}>Como você está se sentindo?</Text>
                                 </View>
-                                <TouchableOpacity onPress={() => router.replace('/pages/Perfil')}>
+                                <TouchableOpacity onPress={() => router.push('/pages/Perfil')}>
                                     {userPhoto ? (
                                         <Image source={{ uri: userPhoto }} style={styles.foto} />
                                     ) : (
-                                        <View style={styles.foto}>
-                                            <FotoPerfil width={94} height={94} />
+                                        <View style={styles.fotoPlaceholder}>
+                                            <FotoPerfil width={50} height={50} />
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -354,8 +354,8 @@ const styles = StyleSheet.create({
         flex: 1
     },
     feeling: {
-        marginVertical: 20,
-        marginTop: 30,
+        marginVertical: 20, // ← Use valores fixos em vez de %
+        marginTop: 50,
         paddingHorizontal: 20
     },
     containerUser: {
@@ -365,23 +365,32 @@ const styles = StyleSheet.create({
     },
     textContainer: {
         flex: 1,
-        top: '50%'
+        // ❌ REMOVA: top: '50%'
     },
     userText: {
         fontSize: 18,
         fontFamily: 'Roboto-Regular',
-        top: 5,
-        marginBottom: '2%'
+        // ❌ REMOVA: top: 5,
+        marginBottom: 4, // ← Use px fixo
     },
     foto: {
         width: 50,
         height: 50,
-        borderRadius: 55,
-        right: 5,
-        borderColor: "white",
+        borderRadius: 25,
+        borderColor: "#000000",
         borderWidth: 2,
-        position: 'absolute',
-        marginBottom: 12
+        // ❌ REMOVA: top:'5%'
+    },
+    fotoPlaceholder: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        borderColor: "#00000060",
+        borderWidth: 2,
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#E0E8F9',
     },
     textFeeling: {
         fontSize: 18,
@@ -450,7 +459,7 @@ const styles = StyleSheet.create({
     },
     dadosConsulta: {
         flexDirection: 'row',
-        gap: '41.5%',
+        gap: '37.5%',
         marginBottom: 10,
     },
     maps: {

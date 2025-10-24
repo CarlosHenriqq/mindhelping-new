@@ -1,14 +1,10 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-    ActivityIndicator // Importar para o loading
-    ,
-
-
-
+    ActivityIndicator,
     Alert,
     Keyboard,
     KeyboardAvoidingView,
@@ -25,24 +21,18 @@ import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
 import { useUser } from "../../../../context/UserContext";
 
 export default function Anotacoes() {
-    // 1. CORREÇÃO: Receber 'dailyId' (que a tela Diario envia)
     const { dailyId } = useLocalSearchParams();
     const { userId } = useUser();
 
     const [anotacaoTexto, setAnotacaoTexto] = useState('');
-
-    // Este estado agora controla se estamos em modo de visualização/edição
-    const [anotacaoId, setAnotacaoId] = useState(dailyId || null);
+    const [anotacaoId, setAnotacaoId] = useState(null);
     const [loading, setLoading] = useState(false);
-
-    // Estado para guardar a data da anotação (para visualização)
     const [displayDate, setDisplayDate] = useState(new Date());
 
     const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio',
         'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const dias = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
-    // Função helper para formatar a data
     const formatarData = (dateObj) => {
         if (!dateObj) return '';
         const mes = meses[dateObj.getMonth()];
@@ -50,55 +40,75 @@ export default function Anotacoes() {
         return `${diaSemana}, ${dateObj.getDate()} de ${mes} de ${dateObj.getFullYear()}`;
     };
 
-    useEffect(() => {
-        const carregarAnotacao = async (id) => {
+    const carregarAnotacao = async (id) => {
+        setLoading(true);
+        try {
+            console.log(`📖 Buscando anotação com ID: ${id}`);
+
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${id}`);
+            console.log("✅ Resposta da API:", response.data);
+
+            const anotacao = response.data.daily || response.data;
+
+            if (anotacao && anotacao.content) {
+                setAnotacaoTexto(anotacao.content);
+                setDisplayDate(new Date(anotacao.createdAt));
+                console.log("✅ Anotação carregada com sucesso");
+            } else {
+                console.error("❌ Formato de resposta inesperado:", response.data);
+                Alert.alert("Erro", "Não foi possível ler os dados da anotação.");
+            }
+
+        } catch (error) {
+            console.error("❌ Erro ao carregar anotação:", error.response?.data || error.message);
+            Alert.alert("Erro", "Não foi possível carregar a anotação.");
+            router.back();
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ===== MUDANÇA CRÍTICA: useFocusEffect em vez de useEffect =====
+    useFocusEffect(
+        useCallback(() => {
+            console.log("\n🔍 [FOCUS] Tela focada");
+            console.log("🔍 [FOCUS] dailyId recebido:", dailyId);
+            console.log("🔍 [FOCUS] Tipo:", typeof dailyId);
+
+            // Limpa os estados ANTES de verificar
             setLoading(true);
-            try {
-                console.log(`Buscando anotação com ID: ${id} para userId: ${userId}`);
 
-                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${id}`);
-                console.log("Resposta da API (item único):", JSON.stringify(response.data, null, 2));
+            // Trata dailyId como array (bug comum do Expo Router)
+            const idToUse = Array.isArray(dailyId) ? dailyId[0] : dailyId;
+            console.log("🔍 [FOCUS] ID processado:", idToUse);
 
-                const anotacao = response.data.daily;
+            // Verifica se é um ID válido (UUID tem 36 caracteres com hífens)
+            const isValidId = idToUse && 
+                             idToUse !== 'undefined' && 
+                             idToUse !== 'null' &&
+                             typeof idToUse === 'string' &&
+                             idToUse.length > 10;
 
-                if (anotacao && anotacao.content) {
-                    setAnotacaoTexto(anotacao.content);
-                    setDisplayDate(new Date(anotacao.createdAt));
-                } else {
-                    if (response.data.content) {
-                        setAnotacaoTexto(response.data.content);
-                        setDisplayDate(new Date(response.data.createdAt));
-                    } else {
-                        console.error("Formato de resposta inesperado:", response.data);
-                        Alert.alert("Erro", "Não foi possível ler os dados da anotação.");
-                    }
-                }
-
-            } catch (error) {
-                console.error("Erro ao carregar anotação:", error.response?.data || error.message);
-                Alert.alert("Erro", "Não foi possível carregar a anotação.");
-                router.replace("/pages/Diario");
-            } finally {
+            if (isValidId) {
+                console.log("📝 Modo EDIÇÃO/VISUALIZAÇÃO");
+                setAnotacaoId(idToUse);
+                carregarAnotacao(idToUse);
+            } else {
+                console.log("✨ Modo NOVA ANOTAÇÃO - LIMPANDO TUDO");
+                // Limpa completamente o estado
+                setAnotacaoTexto('');
+                setAnotacaoId(null);
+                setDisplayDate(new Date());
                 setLoading(false);
             }
-        };
 
-        // CORREÇÃO AQUI: Verificar se dailyId existe E não é undefined/null
-        if (dailyId && dailyId !== 'undefined' && dailyId !== 'null') {
-            console.log("📝 Modo EDIÇÃO - carregando anotação:", dailyId);
-            setAnotacaoId(dailyId);
-            carregarAnotacao(dailyId);
-        } else {
-            // Nova anotação - LIMPAR tudo
-            console.log("✨ Modo NOVA ANOTAÇÃO - limpando campos");
-            setAnotacaoTexto('');
-            setAnotacaoId(null);
-            setDisplayDate(new Date());
-            setLoading(false); // Importante: desligar o loading
-        }
-    }, [dailyId, userId]);
+            // Cleanup function (executa quando a tela perde o foco)
+            return () => {
+                console.log("👋 [FOCUS] Tela desfocada - limpando estados");
+            };
+        }, [dailyId, userId])
+    );
 
-    // Esta função agora só será chamada para CRIAR novas anotações
     const handleSalvar = async () => {
         if (!anotacaoTexto.trim()) {
             Alert.alert('Anotação vazia', 'Por favor, digite algo para salvar.');
@@ -106,33 +116,21 @@ export default function Anotacoes() {
         }
 
         try {
-            const payload = {
-                content: anotacaoTexto
-            };
+            console.log("💾 Salvando nova anotação...");
+            
+            const payload = { content: anotacaoTexto };
 
-            // A lógica de 'anotacaoId' (PATCH) não é mais necessária aqui,
-            // pois o botão de salvar só aparece para novas anotações.
-            // Mas manter a lógica completa não prejudica.
-
-            if (anotacaoId) {
-                // Este bloco não deve mais ser acessado se o botão estiver oculto
-                Alert.alert("Erro", "Não é possível atualizar uma anotação existente por aqui.");
-                return;
-
-            } else {
-                // Cria uma nova anotação
-                const response = await axios.post(
-                    `${API_BASE_URL}${ENDPOINTS.DAILY(userId)}`,
-                    payload
-                );
-                console.log("Anotação criada", response.data);
-            }
-
+            const response = await axios.post(
+                `${API_BASE_URL}${ENDPOINTS.DAILY(userId)}`,
+                payload
+            );
+            
+            console.log("✅ Anotação criada:", response.data);
             Alert.alert('Sucesso', 'Anotação salva com sucesso!');
-            router.replace("/pages/Diario");
+            router.back();
 
         } catch (e) {
-            console.error("Erro ao salvar:", e.response?.data || e.message);
+            console.error("❌ Erro ao salvar:", e.response?.data || e.message);
             Alert.alert('Erro', `Não foi possível salvar a anotação: ${e.response?.data?.message || e.message}`);
         }
     };
@@ -150,18 +148,19 @@ export default function Anotacoes() {
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                     <View style={styles.mainContainer}>
                         <View style={styles.header}>
-                            <TouchableOpacity onPress={() => router.replace("/pages/Diario")} style={styles.backButton}>
+                            <TouchableOpacity 
+                                onPress={() => router.back()} 
+                                style={styles.backButton}
+                            >
                                 <ChevronLeft color="#333" size={24} />
                                 <Text style={styles.backButtonText}>Voltar</Text>
                             </TouchableOpacity>
                         </View>
 
-                        {/* 3. TÍTULO CORRIGIDO */}
                         <Text style={styles.title}>
                             {anotacaoId ? "Visualizar Anotação" : "Nova Anotação"}
                         </Text>
 
-                        {/* 4. DATA CORRIGIDA (usa o estado 'displayDate') */}
                         <View style={styles.dateContainer}>
                             <Text style={styles.dateText}>{formatarData(displayDate)}</Text>
                         </View>
@@ -175,26 +174,22 @@ export default function Anotacoes() {
                                     placeholderTextColor={'#9ca3af'}
                                     style={[
                                         styles.input,
-                                        // Estilo de "desabilitado" se anotacaoId existir
                                         anotacaoId ? styles.inputReadOnly : null
                                     ]}
                                     multiline={true}
                                     onChangeText={setAnotacaoTexto}
                                     value={anotacaoTexto}
-                                    // 5. TRAVA DE EDIÇÃO
                                     editable={!anotacaoId}
                                 />
                             )}
                         </View>
 
-                        {/* 6. BOTÃO SÓ APARECE SE FOR UMA NOVA ANOTAÇÃO */}
-                        {!anotacaoId && (
+                        {!anotacaoId && !loading && (
                             <TouchableOpacity
                                 onPress={handleSalvar}
-                                style={styles.saveButton}>
-                                <Text style={styles.saveButtonText}>
-                                    Salvar
-                                </Text>
+                                style={styles.saveButton}
+                            >
+                                <Text style={styles.saveButtonText}>Salvar</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -268,7 +263,6 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
         marginBottom: 20,
-        // Adicionado para centralizar o loading
         justifyContent: 'center'
     },
     input: {
@@ -278,10 +272,9 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         color: '#1f2937',
     },
-    // Novo estilo para o modo "somente leitura"
     inputReadOnly: {
-        color: '#555', // Texto um pouco mais claro
-        backgroundColor: '#f9f9f9' // Fundo levemente acinzentado
+        color: '#555',
+        backgroundColor: '#f9f9f9'
     },
     saveButton: {
         backgroundColor: '#2980B9',

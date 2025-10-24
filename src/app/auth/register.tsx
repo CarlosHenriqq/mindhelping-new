@@ -96,15 +96,15 @@ export default function SignUp() {
         const payload = {
             name,
             birth_date: birthDate, // já no formato que você está coletando
-            cpf: cpf || "000.000.000-00", // placeholder até atualizar no perfil
-            address: endereco || "N/A",
-            neighborhood: bairro || "N/A",
+            cpf: cpf || "Digite seu CPF", // placeholder até atualizar no perfil
+            address: endereco || "Endereço",
+            neighborhood: bairro || "Bairro",
             number: numero || 0,
             complement: "",
-            cepUser: cep || "00000-000",
-            city: cidade || "N/A",
-            uf: uf || "N/A",
-            phone: phone || "(00) 00000-0000",
+            cepUser: cep || "CEP",
+            city: cidade || "Cidade",
+            uf: uf || "UF",
+            phone: phone || "Celular",
             email,
             password,
             gender: value, // pega o selecionado no DropDownPicker

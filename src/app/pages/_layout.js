@@ -109,6 +109,7 @@ export default function TabLayout() {
         name="Perfil/Notificacoes/index" // ou o nome do seu arquivo
         options={{ href: null }} 
       />
+      
     </Tabs>
   );
 }

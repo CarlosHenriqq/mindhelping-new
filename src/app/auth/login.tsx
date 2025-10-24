@@ -115,7 +115,7 @@ export default function Login() {
                             />
                             <Text style={styles.checkboxText}>Lembrar</Text>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={()=> router.replace('/auth/recoverPassword')}>
                             <Text style={styles.textSenha}>Esqueceu sua senha?</Text>
                         </TouchableOpacity>
                     </View>

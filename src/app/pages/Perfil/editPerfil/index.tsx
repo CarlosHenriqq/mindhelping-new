@@ -2,7 +2,7 @@ import axios from "axios";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { Calendar, Camera, ChevronDown, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
+import { AlertCircle, Calendar, Camera, ChevronDown, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
@@ -24,7 +24,7 @@ export default function EditPerfil() {
     const [numero, setNumero] = useState('');
     const [bairro, setBairro] = useState('');
     const [cidade, setCidade] = useState('');
-    // Estado para o Dropdown
+    const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [gender, setGender] = useState('');
     const [genderItem, setGenderItem] = useState([
@@ -42,13 +42,11 @@ export default function EditPerfil() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId)}`, {
-
-                });
+                setLoading(true);
+                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId)}`, {});
                 const data = response.data.user;
                 setUserData(data);
 
-                // popular os states do formulário
                 setName(data.name);
                 setBirthDate(new Date(data.birthDate).toLocaleDateString());
                 setPhone(data.phone);
@@ -62,11 +60,14 @@ export default function EditPerfil() {
                 setCep(data.address?.cep || "");
             } catch (error) {
                 console.error("Erro ao buscar usuário:", error.response || error.message);
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchUser();
     }, []);
+
     useEffect(() => {
         const loadLocalPhoto = async () => {
             try {
@@ -115,6 +116,7 @@ export default function EditPerfil() {
             alert('Erro ao atualizar perfil. Tente novamente.');
         }
     };
+
     const handleChangePhoto = async () => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -134,17 +136,14 @@ export default function EditPerfil() {
             const sourceUri = result.assets[0].uri;
 
             try {
-                // cria uma pasta específica no armazenamento interno
                 const dir = `${FileSystem.documentDirectory}profile/`;
-                const fileUri = `${dir}user_photo.jpg`; // sempre o mesmo nome
+                const fileUri = `${dir}user_photo.jpg`;
 
-                // garante que a pasta exista
                 const dirInfo = await FileSystem.getInfoAsync(dir);
                 if (!dirInfo.exists) {
                     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
                 }
 
-                // copia ou sobrescreve a imagem escolhida
                 await FileSystem.copyAsync({
                     from: sourceUri,
                     to: fileUri,
@@ -159,9 +158,93 @@ export default function EditPerfil() {
         }
     };
 
+    const buscarEnderecoPorCEP = async (cep) => {
+        const cepLimpo = cep.replace(/\D/g, '');
 
+        if (cepLimpo.length !== 8) {
+            return;
+        }
 
+        try {
+            const response = await axios.get(`https://viacep.com.br/ws/${cepLimpo}/json/`);
 
+            if (response.data.erro) {
+                alert('CEP não encontrado');
+                return;
+            }
+
+            setEndereco(response.data.logradouro);
+            setBairro(response.data.bairro);
+            setCidade(response.data.localidade);
+
+        } catch (error) {
+            console.error('Erro ao buscar CEP:', error);
+            alert('Erro ao buscar CEP. Tente novamente.');
+        }
+    };
+
+    // Função para verificar se o perfil está incompleto
+    const verificarPerfilIncompleto = () => {
+        if (loading) return false;
+
+        // Lista dos valores padrão que indicam perfil incompleto
+        const valoresPadrao = ["Digite seu CPF", "Endereço", "Bairro", "CEP", "Cidade", "Celular", "(00) 00000-0000"];
+        
+        // Verifica CPF
+        if (!cpf || cpf.trim() === "" || valoresPadrao.includes(cpf)) return true;
+        
+        // Verifica Phone
+        if (!phone || phone.trim() === "" || valoresPadrao.includes(phone)) return true;
+        
+        // Verifica Gender
+        if (!gender || gender.trim() === "") return true;
+        
+        // Verifica Endereço
+        if (!endereco || endereco.trim() === "" || valoresPadrao.includes(endereco)) return true;
+        
+        // Verifica Bairro
+        if (!bairro || bairro.trim() === "" || valoresPadrao.includes(bairro)) return true;
+        
+        // Verifica Número
+        if (!numero || numero === "0" || numero.trim() === "") return true;
+        
+        // Verifica CEP
+        if (!cep || cep.trim() === "" || valoresPadrao.includes(cep)) return true;
+        
+        // Verifica Cidade
+        if (!cidade || cidade.trim() === "" || valoresPadrao.includes(cidade)) return true;
+        
+        return false;
+    };
+
+    const perfilIncompleto = verificarPerfilIncompleto();
+
+    // Função para verificar se um campo específico está incompleto
+    const isCampoIncompleto = (valor, valorPadrao) => {
+        if (loading) return false;
+        
+        const valoresPadrao = ["Digite seu CPF", "Endereço", "Bairro", "CEP", "Cidade", "Celular", "(00) 00000-0000"];
+        
+        return !valor || 
+               valor.trim() === "" || 
+               valor === "0" ||
+               valor === valorPadrao ||
+               valoresPadrao.includes(valor);
+    };
+
+    // DEBUG - remova depois de testar
+    console.log("=== DEBUG PERFIL ===");
+    console.log("Loading:", loading);
+    console.log("CPF:", cpf);
+    console.log("Phone:", phone);
+    console.log("Gender:", gender);
+    console.log("Endereco:", endereco);
+    console.log("Bairro:", bairro);
+    console.log("Numero:", numero);
+    console.log("CEP:", cep);
+    console.log("Cidade:", cidade);
+    console.log("Perfil Incompleto:", perfilIncompleto);
+    console.log("===================");
 
     return (
         <LinearGradient
@@ -185,10 +268,9 @@ export default function EditPerfil() {
                                 <Image source={{ uri: userPhoto }} style={styles.foto} />
                             ) : (
                                 <View style={styles.foto}>
-                                    <FotoPerfil width={94} height={94} /> {/* 100 - 3px de borda de cada lado */}
+                                    <FotoPerfil width={94} height={94} />
                                 </View>
                             )}
-
 
                             <TouchableOpacity
                                 style={styles.editFotoButton}
@@ -196,9 +278,27 @@ export default function EditPerfil() {
                             >
                                 <Camera size={16} color="#fff" />
                             </TouchableOpacity>
+
+                            {/* ÍCONE DE ALERTA */}
+                            {perfilIncompleto && (
+                                <View style={styles.alertBadge}>
+                                    <AlertCircle size={20} color="#fff" />
+                                </View>
+                            )}
                         </View>
 
                         <Text style={styles.nome}>{name}</Text>
+
+                        {/* MENSAGEM DE ALERTA */}
+                        {perfilIncompleto && (
+                            <View style={styles.warningContainer}>
+                                <AlertCircle size={16} color="#f59e0b" />
+                                <Text style={styles.warningText}>
+                                    Complete seu perfil para aproveitar todos os recursos
+                                </Text>
+                            </View>
+                        )}
+
                         <View style={styles.locationContainer}>
                             <MapPin size={16} color={"#4b5563"} />
                             <Text style={styles.locationText}>Birigui - São Paulo</Text>
@@ -227,7 +327,11 @@ export default function EditPerfil() {
                                     onChangeText={setBirthDate}
                                 />
                             </View>
-                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <View style={[
+                                styles.inputWrapper, 
+                                { flex: 1 }, 
+                                isCampoIncompleto(phone, "Celular") && styles.inputIncompleto
+                            ]}>
                                 <Phone color="#3386BC" size={20} style={styles.icon} />
                                 <TextInput
                                     placeholder="Telefone"
@@ -251,7 +355,10 @@ export default function EditPerfil() {
                             />
                         </View>
 
-                        <View style={styles.inputWrapper}>
+                        <View style={[
+                            styles.inputWrapper,
+                            isCampoIncompleto(cpf, "Digite seu CPF") && styles.inputIncompleto
+                        ]}>
                             <IdCard color="#3386BC" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="CPF"
@@ -271,7 +378,10 @@ export default function EditPerfil() {
                             setItems={setGenderItem}
                             listMode="SCROLLVIEW"
                             placeholder="Identidade de gênero"
-                            style={styles.dropdown}
+                            style={[
+                                styles.dropdown,
+                                isCampoIncompleto(gender, "") && styles.dropdownIncompleto
+                            ]}
                             dropDownContainerStyle={styles.dropdownContainer}
                             textStyle={{ color: "#333" }}
                             ArrowDownIconComponent={() => <ChevronDown color="#3386BC" size={20} />}
@@ -280,7 +390,10 @@ export default function EditPerfil() {
                             zIndexInverse={1000}
                         />
 
-                        <View style={styles.inputWrapper}>
+                        <View style={[
+                            styles.inputWrapper,
+                            isCampoIncompleto(endereco, "Endereço") && styles.inputIncompleto
+                        ]}>
                             <MapPin color="#3386BC" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="Endereço"
@@ -291,7 +404,11 @@ export default function EditPerfil() {
                         </View>
 
                         <View style={styles.row}>
-                            <View style={[styles.inputWrapper, { flex: 2 }]}>
+                            <View style={[
+                                styles.inputWrapper, 
+                                { flex: 2 }, 
+                                isCampoIncompleto(bairro, "Bairro") && styles.inputIncompleto
+                            ]}>
                                 <TextInput
                                     placeholder="Bairro"
                                     style={styles.input}
@@ -299,7 +416,11 @@ export default function EditPerfil() {
                                     onChangeText={setBairro}
                                 />
                             </View>
-                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <View style={[
+                                styles.inputWrapper, 
+                                { flex: 1 }, 
+                                isCampoIncompleto(numero, "0") && styles.inputIncompleto
+                            ]}>
                                 <TextInput
                                     placeholder="Nº"
                                     style={styles.input}
@@ -311,16 +432,30 @@ export default function EditPerfil() {
                         </View>
 
                         <View style={styles.row}>
-                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <View style={[
+                                styles.inputWrapper, 
+                                { flex: 1 }, 
+                                isCampoIncompleto(cep, "CEP") && styles.inputIncompleto
+                            ]}>
                                 <TextInput
                                     placeholder="CEP"
                                     style={styles.input}
                                     value={cep}
-                                    onChangeText={setCep}
+                                    onChangeText={(text) => {
+                                        setCep(text);
+                                        if (text.replace(/\D/g, '').length === 8) {
+                                            buscarEnderecoPorCEP(text);
+                                        }
+                                    }}
                                     keyboardType="numeric"
+                                    maxLength={9}
                                 />
                             </View>
-                            <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <View style={[
+                                styles.inputWrapper, 
+                                { flex: 1 }, 
+                                isCampoIncompleto(cidade, "Cidade") && styles.inputIncompleto
+                            ]}>
                                 <TextInput
                                     placeholder="Cidade"
                                     style={styles.input}
@@ -347,7 +482,7 @@ export default function EditPerfil() {
 
 const styles = StyleSheet.create({
     background: {
-        flex: 1, // <-- 2. CORREÇÃO DE LAYOUT
+        flex: 1,
     },
     scrollContainer: {
         paddingHorizontal: 20,
@@ -378,6 +513,21 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: "#eff6ff",
     },
+    alertBadge: {
+        position: "absolute",
+        top: -5,
+        left: -5,
+        backgroundColor: "#f59e0b",
+        borderRadius: 20,
+        padding: 6,
+        borderWidth: 2,
+        borderColor: "#eff6ff",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+        elevation: 4,
+    },
     nome: {
         fontSize: 22,
         color: "#111827",
@@ -385,10 +535,28 @@ const styles = StyleSheet.create({
         marginTop: 12,
         marginBottom: 4,
     },
+    warningContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#fef3c7",
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+        marginTop: 8,
+        gap: 6,
+        maxWidth: '90%',
+    },
+    warningText: {
+        fontSize: 13,
+        color: "#92400e",
+        fontWeight: "500",
+        flex: 1,
+    },
     locationContainer: {
         flexDirection: "row",
         alignItems: "center",
         gap: 5,
+        marginTop: 8,
     },
     locationText: {
         fontSize: 15,
@@ -463,5 +631,15 @@ const styles = StyleSheet.create({
     },
     deleteButtonText: {
         color: "#ef4444",
+    },
+    inputIncompleto: {
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+        
+    },
+    dropdownIncompleto: {
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+        
     },
 });

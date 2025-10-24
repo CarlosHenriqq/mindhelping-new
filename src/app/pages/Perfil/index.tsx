@@ -5,9 +5,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { Bell, ChevronRight, CircleQuestionMark, Cog, LogOut, MapPin, TrophyIcon } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+// 1. Alert importado
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import FotoPerfil from '../../../../assets/mascote.svg';
 import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
+// 2. Import do useUser (sem o logout aqui)
 import { useUser } from "../../../context/UserContext";
 
 export default function Perfil() {
@@ -17,7 +19,8 @@ export default function Perfil() {
     const [adress, setAdress] = useState('');
     const [userPhoto, setUserPhoto] = useState(null);
 
-    const { userId } = useUser();
+    // 3. Pega o 'logout' do hook
+    const { userId, logout } = useUser(); 
 
     // Carrega dados do perfil do usuário
     const loadLastFeeling = async () => {
@@ -43,7 +46,6 @@ export default function Perfil() {
             const dir = `${FileSystem.documentDirectory}profile/`;
             const fileUri = `${dir}user_photo.jpg`;
 
-            // garante que a pasta exista
             const dirInfo = await FileSystem.getInfoAsync(dir);
             if (!dirInfo.exists) {
                 await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
@@ -69,10 +71,34 @@ export default function Perfil() {
     useFocusEffect(
         React.useCallback(() => {
             loadLastFeeling();
-            loadLocalPhoto(); // agora funciona, pois a função existe
-        }, [])
+            loadLocalPhoto(); 
+        }, [userId]) // Adicionado userId como dependência
     );
 
+    // 4. Função de Logout CORRETA (com Alert e await)
+    const handleLogout = () => {
+        Alert.alert(
+            "Confirmar Saída",
+            "Tem certeza de que deseja sair do aplicativo?",
+            [
+                {
+                    text: "Cancelar",
+                    style: "cancel"
+                },
+                {
+                    text: "Sair",
+                    style: "destructive",
+                    onPress: async () => {
+                        if (logout) {
+                            await logout(); // ESPERA o logout terminar
+                        }
+                        // SÓ NAVEGA DEPOIS
+                        router.replace('/'); 
+                    }
+                }
+            ]
+        );
+    };
 
 
     return (
@@ -88,7 +114,8 @@ export default function Perfil() {
                         <Text style={styles.topButtonText}>Metas</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.logoutButton}>
+                    {/* 5. Botão chama a função handleLogout */}
+                    <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <LogOut size={20} color={"#ef4444"} />
                         <Text style={styles.logoutText}>Sair</Text>
                     </TouchableOpacity>
@@ -162,10 +189,11 @@ export default function Perfil() {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
-        </LinearGradient>
+        </LinearGradient >
     );
 }
 
+// ... (seus estilos continuam aqui, eles estão corretos) ...
 const styles = StyleSheet.create({
     background: { flex: 1 },
     scrollContainer: { padding: 20 },

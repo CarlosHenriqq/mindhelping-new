@@ -8,6 +8,7 @@ import {
     ,
 
 
+
     Alert,
     Keyboard,
     KeyboardAvoidingView,
@@ -49,27 +50,21 @@ export default function Anotacoes() {
         return `${diaSemana}, ${dateObj.getDate()} de ${mes} de ${dateObj.getFullYear()}`;
     };
 
-    // ##### useEffect CORRIGIDO #####
     useEffect(() => {
-        const carregarAnotacao = async (dailyId) => {
+        const carregarAnotacao = async (id) => {
             setLoading(true);
             try {
-                // 1. Log para confirmar que a busca está sendo feita
-                console.log(`Buscando anotação com ID: ${dailyId} para userId: ${userId}`);
+                console.log(`Buscando anotação com ID: ${id} para userId: ${userId}`);
 
-                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${dailyId}`);
-
-                // 2. Log para ver o que a API realmente retornou
+                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${id}`);
                 console.log("Resposta da API (item único):", JSON.stringify(response.data, null, 2));
 
-                // 3. CORREÇÃO: Acessar o objeto "daily" aninhado
-                const anotacao = response.data.daily; // <--- A MUDANÇA ESTÁ AQUI
+                const anotacao = response.data.daily;
 
                 if (anotacao && anotacao.content) {
                     setAnotacaoTexto(anotacao.content);
                     setDisplayDate(new Date(anotacao.createdAt));
                 } else {
-                    // Fallback se a resposta for plana (o que eu tinha antes)
                     if (response.data.content) {
                         setAnotacaoTexto(response.data.content);
                         setDisplayDate(new Date(response.data.createdAt));
@@ -88,16 +83,20 @@ export default function Anotacoes() {
             }
         };
 
-        if (dailyId) {
+        // CORREÇÃO AQUI: Verificar se dailyId existe E não é undefined/null
+        if (dailyId && dailyId !== 'undefined' && dailyId !== 'null') {
+            console.log("📝 Modo EDIÇÃO - carregando anotação:", dailyId);
             setAnotacaoId(dailyId);
             carregarAnotacao(dailyId);
         } else {
-            // Se não tem dailyId, é uma nova anotação
+            // Nova anotação - LIMPAR tudo
+            console.log("✨ Modo NOVA ANOTAÇÃO - limpando campos");
             setAnotacaoTexto('');
             setAnotacaoId(null);
-            setDisplayDate(new Date()); // Usa a data de hoje
+            setDisplayDate(new Date());
+            setLoading(false); // Importante: desligar o loading
         }
-    }, [dailyId, userId]); // Depende do dailyId e userId
+    }, [dailyId, userId]);
 
     // Esta função agora só será chamada para CRIAR novas anotações
     const handleSalvar = async () => {

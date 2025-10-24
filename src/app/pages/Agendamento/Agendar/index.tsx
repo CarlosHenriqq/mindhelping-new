@@ -64,10 +64,22 @@ export default function AgendarConsulta() {
   async function fetchSchedules() {
     try {
       const url = `${API_BASE_URL}${ENDPOINTS.SCHEDULES_GET(id)}`;
-      console.log("🔗 URL chamada:", url);
+      console.log("🔗 URL chamada schedules:", url);
+      console.log("📋 ID do profissional:", id);
 
       const response = await axios.get(url);
+      console.log("✅ Resposta schedules:", response.data);
+
       const schedulesData = response.data.schedules;
+
+      // Verifica se há schedules
+      if (!schedulesData || schedulesData.length === 0) {
+        console.log("⚠️ Nenhuma agenda cadastrada para este profissional");
+        setSchedules([]);
+        setVagas([]);
+        setMarkedDates({});
+        return;
+      }
 
       setSchedules(schedulesData);
 
@@ -86,18 +98,41 @@ export default function AgendarConsulta() {
 
       const marks: any = {};
       vagasConvertidas.forEach((vaga) => {
-        marks[vaga.date] = { marked: true, dotColor: "green" };
+        marks[vaga.date] = {
+          customStyles: {
+            container: { backgroundColor: '#27ae60', borderRadius: 10 },
+            text: { color: "white", fontWeight: "bold" },
+          },
+        };
       });
       setMarkedDates(marks);
-    } catch (error) {
-      console.log("Erro ao buscar schedules:", error);
+    } catch (error: any) {
+      console.log("❌ Erro ao buscar schedules:", error);
+      console.log("❌ Response:", error.response?.data);
+      console.log("❌ Status:", error.response?.status);
+
+      // Se for 404, provavelmente não há agendas cadastradas
+      if (error.response?.status === 404) {
+        console.log("⚠️ Endpoint não encontrado ou sem agendas para este profissional");
+        setSchedules([]);
+        setVagas([]);
+        setMarkedDates({});
+      }
     }
   }
 
   useEffect(() => {
     if (!id) return;
+
+    // Limpar estados antes de buscar novos dados
+    setSchedules([]);
+    setVagas([]);
+    setMarkedDates({});
+    setSelectedDate(null);
+    setHorarios([]);
+
     fetchSchedules();
-  }, [id]);
+  }, [id]); // ← Adicionar id como dependência
 
 
 
@@ -133,7 +168,7 @@ export default function AgendarConsulta() {
   async function confirmScheduling() {
     if (!selectedDate || !hourSelected) return;
 
-    
+
 
     const schedule = schedules.find((sch: any) =>
       sch.initialTime?.startsWith(selectedDate)

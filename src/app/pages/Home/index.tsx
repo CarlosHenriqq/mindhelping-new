@@ -63,7 +63,7 @@ export default function Home() {
         { text: "NÃO_SEI_DIZER", image: require('../../../../assets/images/slide/indeciso.png') },
     ]);
 
-    const [userName, setUserName] = useState('Carlos');
+    const [userName, setUserName] = useState('');
     const { userId, loadingUser } = useUser();
     const [userPhoto, setUserPhoto] = useState(null);
 
@@ -196,10 +196,25 @@ export default function Home() {
             console.error("Erro ao carregar imagem local:", err);
         }
     };
+    const loadLastFeeling = async () => {
+        try {
+            const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER_DETAILS(userId)}`);
+            const dados = response.data.profile;
+
+            
+            setUserName(dados.nameUser.split(' ')[0]);
+
+           
+        } catch (error) {
+            console.log("Erro ao carregar último sentimento:", error);
+        }
+    };
 
     // useEffect só para carregar na primeira vez
     useEffect(() => {
         loadLocalPhoto();
+        loadLastFeeling();
+        
     }, []);
 
 

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { ChevronLeft } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -13,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { Calendar, DateObject } from "react-native-calendars";
+import { CustomAlert, useCustomAlert } from "../../../../components/CustomAlert";
 import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
 import { useUser } from "../../../../context/UserContext";
 
@@ -32,7 +34,8 @@ export interface Vaga {
 }
 
 export default function AgendarConsulta() {
-  const { id } = useLocalSearchParams();
+  const { id, returnTo } = useLocalSearchParams();
+  
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -41,7 +44,7 @@ export default function AgendarConsulta() {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [visibleDate, setVisibleDate] = useState(new Date());
   const { userId } = useUser();
-  // controle do modal
+  const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
   const [modalVisible, setModalVisible] = useState(false);
   const [hourSelected, setHourSelected] = useState<string | null>(null);
 
@@ -200,24 +203,47 @@ export default function AgendarConsulta() {
 
       console.log("✅ Agendamento realizado:", response.data);
 
-      // 1. Fecha o modal
+      // FECHAR O MODAL ANTES DO ALERTA
       setModalVisible(false);
 
-      // 2. Mostra sucesso
-      alert("Agendamento realizado com sucesso!");
+      // ADICIONE UM PEQUENO DELAY
+      setTimeout(() => {
+        console.log("🎉 Chamando showSuccess..."); // ← LOG AQUI
+        showSuccess(
+          'Sucesso!',
+          'Agendamento realizado com sucesso!'
+        );
+      }, 300);
 
-      // 3. Recarrega os horários do dia selecionado (REMOVE O HORÁRIO AGENDADO)
       console.log("🔄 Recarregando horários do dia...");
       await onDayPress({ dateString: selectedDate } as any);
 
-      // 4. Atualiza as agendas gerais (opcional, mas recomendado)
       console.log("🔄 Atualizando lista de agendas...");
       await fetchSchedules();
 
     } catch (error: any) {
+      console.log("❌ Entrou no catch, status:", error.response?.status); // ← LOG AQUI
+
+      if (error.response?.status === 500) {
+        console.log("🚨 Chamando showError..."); // ← LOG AQUI
+
+        // FECHAR O MODAL ANTES DO ALERTA
+        setModalVisible(false);
+
+        // DELAY ANTES DE MOSTRAR O ERRO
+        setTimeout(() => {
+          showError(
+            'Erro no Agendamento',
+            'Não é possível agendar uma consulta em horário retroativo. Por favor, tente novamente.'
+          );
+        }, 300);
+
+        setSchedules([]);
+        setVagas([]);
+        setMarkedDates({});
+      }
       console.error("❌ Erro ao agendar:", error);
       console.error("❌ Response:", error.response?.data);
-      alert("Erro ao tentar agendar. Tente novamente.");
     }
   }
 
@@ -244,16 +270,29 @@ export default function AgendarConsulta() {
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
+   const handleGoBack = () => {
+   
+  if (returnTo) {
+    router.replace(returnTo as any);
+  } else {
+    router.replace('/pages/Home');
+  }
+};
 
 
 
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient colors={['#eff6ff', '#dbeafe']} style={{ flex: 1 }}>
+         
         <ScrollView
           bounces={false}
           contentContainerStyle={{ flexGrow: 1 }} // ← IMPORTANTE!
         >
+          <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
+          <ChevronLeft color="#333" size={24} />
+          <Text style={styles.textoVoltar}>Voltar</Text>
+        </TouchableOpacity>
           <View style={styles.screen}>
             <Text style={styles.title}>Agendamento de consulta</Text>
 
@@ -379,6 +418,13 @@ export default function AgendarConsulta() {
             </View>
           </View>
         </Modal>
+        <CustomAlert
+          visible={alertConfig.visible}
+          type={alertConfig.type}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          onClose={hideAlert}
+        />
       </LinearGradient>
     </View>
   );
@@ -387,7 +433,7 @@ export default function AgendarConsulta() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1, // ← Mantenha isso
-    paddingTop: "20%",
+    paddingTop: 20,
     alignItems: "center",
     paddingBottom: 20, // ← Adicione um padding no final
   },
@@ -396,6 +442,17 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 20,
+  },
+  botaoVoltar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop:50,
+    marginLeft:10
+  },
+  textoVoltar: {
+    fontSize: 16,
+    color: '#333',
+   
   },
   card: {
     borderWidth: 1,

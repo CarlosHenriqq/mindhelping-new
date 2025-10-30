@@ -93,30 +93,41 @@ export default function SignUp() {
             return;
         } // chama a função, não só referencia
 
-        const payload = {
-            name,
-            birth_date: birthDate, // já no formato que você está coletando
-            cpf: cpf || "Digite seu CPF", // placeholder até atualizar no perfil
-            address: endereco || "Endereço",
-            neighborhood: bairro || "Bairro",
-            number: numero || 0,
-            complement: "",
-            cepUser: cep || "CEP",
-            city: cidade || "Cidade",
-            uf: uf || "UF",
-            phone: phone || "Celular",
-            email,
-            password,
-            gender: value, // pega o selecionado no DropDownPicker
+        const formatDateForAPI = (dateStr: string): string => {
+            // Se já estiver no formato correto, retorna
+            if (dateStr.includes('-')) return dateStr;
+
+            // Converte de DD/MM/YYYY para YYYY-MM-DD
+            const [day, month, year] = dateStr.split('/');
+            return `${year}-${month}-${day}`;
         };
 
+        const payload = {
+            name,
+            birth_date: formatDateForAPI(birthDate),
+            cpf: cpf || "00000000000", // CPF genérico com 11 dígitos
+            address: endereco || "Rua Padrão",
+            neighborhood: bairro || "Centro",
+            number: numero || 0,
+            complement: "Complement",
+            cepUser: cep || "00000000", // CEP com 8 dígitos
+            city: cidade || "São Paulo",
+            uf: uf || "SP",
+            phone: phone || "00000000000", // Telefone com 11 dígitos
+            email,
+            password,
+            gender: value || "other", // Valor padrão se vazio
+        };
+
+        console.log('📅 Data convertida:', formatDateForAPI(birthDate)); // Deve mostrar "2003-02-21"
+
         try {
-            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.USER}`, payload);
+            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.REGISTER}`, payload);
             console.log("✅ Usuário registrado com sucesso:", response.data);
 
             // pode jogar direto pra tela de login depois
             router.replace("./login");
-        } catch (error) {
+        } catch (error:any) {
             console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
             alert("Erro ao cadastrar. Tente novamente.");
         }

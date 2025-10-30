@@ -20,7 +20,7 @@ const Analystic = () => {
   const [feelingsList, setFeelingsList] = useState([]);
   const [modalVisible, setModalVisible] = useState(false); // Modal para motivos
 
-  const feelingColors = {
+  const feelingColors: any = {
     FELIZ: '#edd892',
     TRISTE: '#6f9ceb',
     RAIVA: '#ef6865',
@@ -34,8 +34,7 @@ const Analystic = () => {
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
 
-  const fetchFeelings = async (date) => {
-   
+  const fetchFeelings = async (date: any) => {
     if (!userId) return;
 
     const formattedDate = date.toISOString().split('T')[0];
@@ -47,11 +46,23 @@ const Analystic = () => {
 
       if (response.data && response.data.feelings) {
         const feelings = response.data.feelings;
+
+
+        const counts = {
+          FELIZ: 0,
+          TRISTE: 0,
+          RAIVA: 0,
+          ANSIOSO: 0,
+          TEDIO: 0,
+          NEUTRO: 0  // 👈 Mantém NEUTRO aqui
+        };
+
+        feelings.forEach(f => {
+          // 👇 Converte NÃO_SEI_DIZER para NEUTRO
+          const description = f.description === 'NÃO_SEI_DIZER' ? 'NEUTRO' : f.description;
+          if (counts[description] !== undefined) counts[description]++;
+        });
         setFeelingsList(feelings);
-
-        const counts = { FELIZ: 0, TRISTE: 0, RAIVA: 0, ANSIOSO: 0, TEDIO: 0, NEUTRO: 0 };
-        feelings.forEach(f => { if (counts[f.description] !== undefined) counts[f.description]++; });
-
         const chartData = Object.keys(counts).map(key => ({
           description: key,
           value: counts[key],
@@ -61,11 +72,10 @@ const Analystic = () => {
         setFeelingDataForChart(chartData);
         setMaxValue(Math.max(...chartData.map(c => c.value), 1));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
     }
   };
-
   useFocusEffect(
     React.useCallback(() => {
       StatusBar.setBackgroundColor('#A3D8F4');
@@ -77,7 +87,7 @@ const Analystic = () => {
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} overScrollMode="never">
       <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
         <View style={styles.Seta}>
-          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={styles.botaoVoltar}>
+          <TouchableOpacity onPress={() => router.replace('/pages/Home')} style={styles.botaoVoltar}>
             <ChevronLeft color="black" />
           </TouchableOpacity>
           <Text>Voltar</Text>
@@ -124,9 +134,11 @@ const Analystic = () => {
               <Text style={styles.modalTitle}>Motivos dos sentimentos</Text>
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {feelingsList.length > 0 ? (
-                  Object.entries(feelingsList.reduce((acc, f) => {
-                    if (!acc[f.description]) acc[f.description] = [];
-                    if (f.motive) acc[f.description].push(f.motive);
+                  Object.entries(feelingsList.reduce((acc: any, f: any) => {
+                    // 👇 Converte NÃO_SEI_DIZER para NEUTRO
+                    const description = f.description === 'NÃO_SEI_DIZER' ? 'NEUTRO' : f.description;
+                    if (!acc[description]) acc[description] = [];
+                    if (f.motive) acc[description].push(f.motive);
                     return acc;
                   }, {})).map(([feeling, motives], index) => (
                     <View key={index} style={{ marginBottom: 10 }}>
@@ -141,7 +153,6 @@ const Analystic = () => {
                 ) : (
                   <Text style={{ textAlign: 'center', marginTop: 10 }}>Nenhum sentimento registrado nesse dia.</Text>
                 )}
-
               </ScrollView>
               <TouchableOpacity style={styles.buttonCloseModal} onPress={() => setModalVisible(false)}>
                 <Text style={styles.buttonText}>Fechar</Text>

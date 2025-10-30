@@ -2,7 +2,8 @@ import axios from "axios";
 import * as FileSystem from "expo-file-system/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { AlertCircle, Calendar, Camera, ChevronDown, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { AlertCircle, Calendar, Camera, ChevronDown, ChevronLeft, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
@@ -12,6 +13,7 @@ import { useUser } from "../../../../context/UserContext";
 
 export default function EditPerfil() {
     const { userId } = useUser();
+    const { returnTo } = useLocalSearchParams();
     const [userData, setUserData] = useState(null)
     const [userPhoto, setUserPhoto] = useState(null);
     const [name, setName] = useState('');
@@ -24,6 +26,7 @@ export default function EditPerfil() {
     const [numero, setNumero] = useState('');
     const [bairro, setBairro] = useState('');
     const [cidade, setCidade] = useState('');
+    const [uf, setUf] = useState('')
     const [loading, setLoading] = useState(true);
     const [open, setOpen] = useState(false);
     const [gender, setGender] = useState('');
@@ -37,28 +40,27 @@ export default function EditPerfil() {
         { label: "Prefiro não dizer", value: "naodizer" },
     ]);
 
-
-
     useEffect(() => {
         const fetchUser = async () => {
             try {
                 setLoading(true);
-                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId)}`, {});
+                const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId || '')}`, {});
                 const data = response.data.user;
                 setUserData(data);
 
                 setName(data.name);
                 setBirthDate(new Date(data.birthDate).toLocaleDateString());
-                setPhone(data.phone);
+                setPhone(data.phone || "00000000000");
                 setEmail(data.email);
-                setCPF(data.cpf);
-                setGender(data.gender);
-                setEndereco(data.address?.street || "");
-                setNumero(data.address?.number?.toString() || "");
-                setBairro(data.address?.neighborhood || "");
-                setCidade(data.address?.city || "");
-                setCep(data.address?.cep || "");
-            } catch (error) {
+                setCPF(data.cpf || "00000000000");
+                setGender(data.gender || "other");
+                setEndereco(data.address?.street || "Rua Padrão");
+                setNumero(data.address?.number?.toString() || "0");
+                setBairro(data.address?.neighborhood || "Centro");
+                setCidade(data.address?.city || "São Paulo");
+                setCep(data.address?.cep || "00000000");
+                setUf(data.address?.uf || "SP");
+            } catch (error: any) {
                 console.error("Erro ao buscar usuário:", error.response || error.message);
             } finally {
                 setLoading(false);
@@ -98,7 +100,7 @@ export default function EditPerfil() {
                 complement: '',
                 cep,
                 city: cidade,
-                uf: 'SP',
+                uf: uf,
                 phone,
                 email,
                 gender,
@@ -176,6 +178,7 @@ export default function EditPerfil() {
             setEndereco(response.data.logradouro);
             setBairro(response.data.bairro);
             setCidade(response.data.localidade);
+            setUf(response.data.uf);
 
         } catch (error) {
             console.error('Erro ao buscar CEP:', error);
@@ -187,64 +190,54 @@ export default function EditPerfil() {
     const verificarPerfilIncompleto = () => {
         if (loading) return false;
 
-        // Lista dos valores padrão que indicam perfil incompleto
-        const valoresPadrao = ["Digite seu CPF", "Endereço", "Bairro", "CEP", "Cidade", "Celular", "(00) 00000-0000"];
-        
-        // Verifica CPF
-        if (!cpf || cpf.trim() === "" || valoresPadrao.includes(cpf)) return true;
-        
-        // Verifica Phone
-        if (!phone || phone.trim() === "" || valoresPadrao.includes(phone)) return true;
-        
-        // Verifica Gender
-        if (!gender || gender.trim() === "") return true;
-        
-        // Verifica Endereço
-        if (!endereco || endereco.trim() === "" || valoresPadrao.includes(endereco)) return true;
-        
-        // Verifica Bairro
-        if (!bairro || bairro.trim() === "" || valoresPadrao.includes(bairro)) return true;
-        
-        // Verifica Número
-        if (!numero || numero === "0" || numero.trim() === "") return true;
-        
-        // Verifica CEP
-        if (!cep || cep.trim() === "" || valoresPadrao.includes(cep)) return true;
-        
-        // Verifica Cidade
-        if (!cidade || cidade.trim() === "" || valoresPadrao.includes(cidade)) return true;
-        
+        // Verifica CPF (padrão: "00000000000")
+        if (!cpf || cpf.trim() === "" || cpf === "00000000000") return true;
+
+        // Verifica Phone (padrão: "00000000000")
+        if (!phone || phone.trim() === "" || phone === "00000000000") return true;
+
+        // Verifica Gender (padrão: "other")
+        if (!gender || gender.trim() === "" || gender === "other") return true;
+
+        // Verifica Endereço (padrão: "Rua Padrão")
+        if (!endereco || endereco.trim() === "" || endereco === "Rua Padrão") return true;
+
+        // Verifica Bairro (padrão: "Centro")
+        if (!bairro || bairro.trim() === "" || bairro === "Centro") return true;
+
+        // Verifica Número (padrão: 0 ou "0")
+        if (!numero || numero === 0 || numero === "0" || numero.toString().trim() === "") return true;
+
+        // Verifica CEP (padrão: "00000000")
+        if (!cep || cep.trim() === "" || cep === "00000000") return true;
+
+        // Verifica Cidade (padrão: "São Paulo")
+        if (!cidade || cidade.trim() === "" || cidade === "São Paulo") return true;
+
+        // Verifica UF (padrão: "SP")
+        if (!uf || uf.trim() === "" || uf === "SP") return true;
+
         return false;
     };
-
     const perfilIncompleto = verificarPerfilIncompleto();
 
     // Função para verificar se um campo específico está incompleto
     const isCampoIncompleto = (valor, valorPadrao) => {
         if (loading) return false;
-        
-        const valoresPadrao = ["Digite seu CPF", "Endereço", "Bairro", "CEP", "Cidade", "Celular", "(00) 00000-0000"];
-        
-        return !valor || 
-               valor.trim() === "" || 
-               valor === "0" ||
-               valor === valorPadrao ||
-               valoresPadrao.includes(valor);
+
+        return !valor ||
+            valor.trim() === "" ||
+            valor === valorPadrao ||
+            (valorPadrao === "0" && (valor === "0" || valor === 0));
     };
 
-    // DEBUG - remova depois de testar
-    console.log("=== DEBUG PERFIL ===");
-    console.log("Loading:", loading);
-    console.log("CPF:", cpf);
-    console.log("Phone:", phone);
-    console.log("Gender:", gender);
-    console.log("Endereco:", endereco);
-    console.log("Bairro:", bairro);
-    console.log("Numero:", numero);
-    console.log("CEP:", cep);
-    console.log("Cidade:", cidade);
-    console.log("Perfil Incompleto:", perfilIncompleto);
-    console.log("===================");
+    const handleGoBack = () => {
+        if (returnTo) {
+            router.replace(returnTo as any);
+        } else {
+            router.replace('/pages/Home');
+        }
+    };
 
     return (
         <LinearGradient
@@ -261,6 +254,10 @@ export default function EditPerfil() {
                     nestedScrollEnabled
                     keyboardShouldPersistTaps="handled"
                 >
+                    <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
+                        <ChevronLeft color="#333" size={24} />
+                        <Text style={styles.textoVoltar}>Voltar</Text>
+                    </TouchableOpacity>
                     {/* Header Perfil */}
                     <View style={styles.headerContainer}>
                         <View style={styles.avatarContainer}>
@@ -328,9 +325,9 @@ export default function EditPerfil() {
                                 />
                             </View>
                             <View style={[
-                                styles.inputWrapper, 
-                                { flex: 1 }, 
-                                isCampoIncompleto(phone, "Celular") && styles.inputIncompleto
+                                styles.inputWrapper,
+                                { flex: 1 },
+                                isCampoIncompleto(phone, "00000000000") && styles.inputIncompleto
                             ]}>
                                 <Phone color="#3386BC" size={20} style={styles.icon} />
                                 <TextInput
@@ -357,7 +354,7 @@ export default function EditPerfil() {
 
                         <View style={[
                             styles.inputWrapper,
-                            isCampoIncompleto(cpf, "Digite seu CPF") && styles.inputIncompleto
+                            isCampoIncompleto(cpf, "00000000000") && styles.inputIncompleto
                         ]}>
                             <IdCard color="#3386BC" size={20} style={styles.icon} />
                             <TextInput
@@ -380,7 +377,7 @@ export default function EditPerfil() {
                             placeholder="Identidade de gênero"
                             style={[
                                 styles.dropdown,
-                                isCampoIncompleto(gender, "") && styles.dropdownIncompleto
+                                isCampoIncompleto(gender, "other") && styles.dropdownIncompleto
                             ]}
                             dropDownContainerStyle={styles.dropdownContainer}
                             textStyle={{ color: "#333" }}
@@ -392,7 +389,7 @@ export default function EditPerfil() {
 
                         <View style={[
                             styles.inputWrapper,
-                            isCampoIncompleto(endereco, "Endereço") && styles.inputIncompleto
+                            isCampoIncompleto(endereco, "Rua Padrão") && styles.inputIncompleto
                         ]}>
                             <MapPin color="#3386BC" size={20} style={styles.icon} />
                             <TextInput
@@ -405,9 +402,9 @@ export default function EditPerfil() {
 
                         <View style={styles.row}>
                             <View style={[
-                                styles.inputWrapper, 
-                                { flex: 2 }, 
-                                isCampoIncompleto(bairro, "Bairro") && styles.inputIncompleto
+                                styles.inputWrapper,
+                                { flex: 2 },
+                                isCampoIncompleto(bairro, "Centro") && styles.inputIncompleto
                             ]}>
                                 <TextInput
                                     placeholder="Bairro"
@@ -417,8 +414,8 @@ export default function EditPerfil() {
                                 />
                             </View>
                             <View style={[
-                                styles.inputWrapper, 
-                                { flex: 1 }, 
+                                styles.inputWrapper,
+                                { flex: 1 },
                                 isCampoIncompleto(numero, "0") && styles.inputIncompleto
                             ]}>
                                 <TextInput
@@ -433,9 +430,9 @@ export default function EditPerfil() {
 
                         <View style={styles.row}>
                             <View style={[
-                                styles.inputWrapper, 
-                                { flex: 1 }, 
-                                isCampoIncompleto(cep, "CEP") && styles.inputIncompleto
+                                styles.inputWrapper,
+                                { flex: 1 },
+                                isCampoIncompleto(cep, "00000000") && styles.inputIncompleto
                             ]}>
                                 <TextInput
                                     placeholder="CEP"
@@ -452,9 +449,9 @@ export default function EditPerfil() {
                                 />
                             </View>
                             <View style={[
-                                styles.inputWrapper, 
-                                { flex: 1 }, 
-                                isCampoIncompleto(cidade, "Cidade") && styles.inputIncompleto
+                                styles.inputWrapper,
+                                { flex: 1 },
+                                isCampoIncompleto(cidade, "São Paulo") && styles.inputIncompleto
                             ]}>
                                 <TextInput
                                     placeholder="Cidade"
@@ -488,6 +485,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 40,
         marginTop: '10%'
+    },
+    botaoVoltar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+       
+        marginTop:10
+    },
+    textoVoltar: {
+        fontSize: 16,
+        color: '#333',
+        marginLeft: 5,
     },
     headerContainer: {
         alignItems: "center",
@@ -534,6 +542,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         marginTop: 12,
         marginBottom: 4,
+        textAlign:'center'
     },
     warningContainer: {
         flexDirection: "row",
@@ -635,11 +644,9 @@ const styles = StyleSheet.create({
     inputIncompleto: {
         borderColor: '#f59e0b',
         borderWidth: 1,
-        
     },
     dropdownIncompleto: {
         borderColor: '#f59e0b',
         borderWidth: 1,
-        
     },
 });

@@ -15,10 +15,14 @@ export const ENDPOINTS = {
   SCHEDULING: '/schedulings',
   SCHEDULING_USER:(userId:string) =>`/schedulings/${userId}`,
   USER: (userId:string) => `/users/${userId}`,
+  REGISTER:'/users',
   USER_DETAILS: (userId: string) => `/me/${userId}`,
   USER_UPDATE: (userId: string) => `/users/data-for-update/${userId}`,
   FEELINGS_USER:(userId:string) => `/feelings/${userId}`,
   CVV_CALLS: (userId: string) => `/cvv-calls/${userId}`,
   DAILY: (userId: string) =>`/dailys/${userId}`,
+  RECOVER_PASSWORD: '/persons/forgot-password',
+  VERIFY_CODE:'/persons/verify-reset-password-code', 
+  RESET_PASSWORD:'/users/password' ,
   LOGIN: '/persons/authenticate'
 };

@@ -100,6 +100,16 @@ export default function Perfil() {
         );
     };
 
+    function handleBack(id) {
+    router.replace({
+      pathname: "/pages/Perfil/editPerfil",
+      params: {
+        id,
+        returnTo: '/pages/Perfil' // ou a rota que você quiser
+      }
+    })
+  }
+
 
     return (
         <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
@@ -136,7 +146,7 @@ export default function Perfil() {
 
                     <TouchableOpacity
                         style={styles.editButton}
-                        onPress={() => router.replace('/pages/Perfil/editPerfil')}
+                        onPress={handleBack}
                     >
                         <Text style={styles.editButtonText}>Editar Perfil</Text>
                     </TouchableOpacity>
@@ -153,7 +163,7 @@ export default function Perfil() {
                                     (lastFeeling.toUpperCase() === 'NÃO_SEI_DIZER' ||
                                         lastFeeling.toUpperCase() === 'NAO_SEI_DIZER')
                                     ? 'Neutro'
-                                    : lastFeeling || 'Neutro'}
+                                    : lastFeeling || ''}
                             </Text>
                         </View>
                     </View>
@@ -245,7 +255,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 20,
     },
-    nome: { fontSize: 22, color: "#111827", fontFamily: "Nunito", fontWeight: "700", marginBottom: 4 },
+    nome: { fontSize: 22, color: "#111827", fontFamily: "Nunito", fontWeight: "700", marginBottom: 4, textAlign:'center' },
     locationContainer: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 15 },
     locationText: { fontSize: 15, color: "#4b5563", fontFamily: "Nunito" },
     editButton: { borderRadius: 20, backgroundColor: "#2980B9", paddingVertical: 10, paddingHorizontal: 25, marginBottom: 20 },

@@ -64,6 +64,16 @@ export default function Login() {
             setLoading(false);
         }
     }
+
+    function handleRecover(id) {
+    router.replace({
+      pathname: "/auth/recoverPassword",
+      params: {
+        id,
+        returnTo: '/auth/login' // ou a rota que você quiser
+      }
+    })
+  }
     return (
         <ImageBackground
             source={require('../../../assets/images/gradiente.png')}
@@ -115,7 +125,7 @@ export default function Login() {
                             />
                             <Text style={styles.checkboxText}>Lembrar</Text>
                         </View>
-                        <TouchableOpacity onPress={()=> router.replace('/auth/recoverPassword')}>
+                        <TouchableOpacity onPress={handleRecover}>
                             <Text style={styles.textSenha}>Esqueceu sua senha?</Text>
                         </TouchableOpacity>
                     </View>

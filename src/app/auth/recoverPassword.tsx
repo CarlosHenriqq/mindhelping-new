@@ -1,5 +1,6 @@
+import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, Mail } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -15,41 +16,63 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+import { CustomAlert, useCustomAlert } from "../../components/CustomAlert";
+import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 
 export default function RecuperarSenha() {
     const [email, setEmail] = useState('');
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
+    const { id, returnTo } = useLocalSearchParams();
 
-    const handleRecuperar = () => {
+    const handleRecuperar = async () => {
         if (!email.trim()) {
             Alert.alert('Campo obrigatório', 'Por favor, digite seu e-mail.');
             return;
         }
 
-        // --- LÓGICA DA API (Exemplo) ---
-        // Aqui você faria a chamada para sua API de recuperação de senha
-        console.log("Solicitando recuperação para:", email);
-        
-        // Simula uma resposta de sucesso
-        Alert.alert(
-            'Verifique seu e-mail',
-            'Se uma conta com este e-mail existir, um link de recuperação será enviado.',
-            [{ text: 'OK', onPress: () => router.back() }] // Volta para a tela anterior
-        );
+        try {
+            const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.RECOVER_PASSWORD}`,
+                {
+                    email: email
+                })
+            showSuccess(
+                'Sucesso!',
+                'Código enviado com sucesso!'
+            );
+            setTimeout(() => {
+                router.push({
+                    pathname: '/auth/verifyCode',
+                    params: { email, returnTo }
+                });
+            }, 1500);
+            console.log("Solicitando recuperação para:", email);
+
+        } catch (error: any) {
+            if (error.response?.status == 404)
+                showError(
+                    'Erro ao enviar código',
+                    'Verifique se você digitou um e-mail válido e tente novamente.'
+                );
+            console.log("Email invalido:", email);
+        }
+
+
+    };
+
+    const handleGoBack = () => {
+
+        if (returnTo) {
+            router.replace(returnTo as any);
+        } else {
+            router.replace('/pages/Home');
+        }
     };
 
     return (
-        // 2. Adicionado o ImageBackground como container principal
-        //    TROQUE O CAMINHO DA IMAGEM ABAIXO
-        <View style={{flex:1}}
-            
-        >
-            {/* 3. O LinearGradient agora fica por cima da imagem,
-                 ajuste as cores para terem transparência se quiser (ex: 'rgba(239, 246, 255, 0.8)')
-                 ou mantenha opaco como está. */}
+        <View style={{ flex: 1 }}>
             <LinearGradient
                 colors={['#eff6ff', '#dbeafe']} // Cores do seu padrão
-                style={styles.background}
-            >
+                style={styles.background}>
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
                     behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -57,10 +80,10 @@ export default function RecuperarSenha() {
                 >
                     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                         <View style={styles.mainContainer}>
-                            
+
                             {/* --- Header (Botão Voltar) --- */}
                             <View style={styles.header}>
-                                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                                <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
                                     <ChevronLeft color="#333" size={24} />
                                     <Text style={styles.backButtonText}>Voltar</Text>
                                 </TouchableOpacity>
@@ -99,14 +122,19 @@ export default function RecuperarSenha() {
                     </TouchableWithoutFeedback>
                 </KeyboardAvoidingView>
             </LinearGradient>
+            <CustomAlert
+                visible={alertConfig.visible}
+                type={alertConfig.type}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={hideAlert}
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    imageBackground: { // Estilo para o ImageBackground
-        flex: 1,
-    },
+
     background: { // Estilo para o LinearGradient
         flex: 1,
         // Se a imagem de fundo for muito forte, adicione transparência:
@@ -114,7 +142,7 @@ const styles = StyleSheet.create({
     },
     mainContainer: {
         flex: 1,
-        paddingTop: StatusBar.currentHeight || 40,
+        paddingTop: StatusBar.currentHeight || 0,
         paddingHorizontal: 20,
         justifyContent: 'center', // Centraliza o conteúdo (útil para login/recuperação)
     },

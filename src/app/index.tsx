@@ -2,11 +2,13 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, View } from 'react-native';
 import Logo from '../../assets/logo.svg';
+import { useNotifications } from '../context/NotificationContext';
 import { useUser } from '../context/UserContext';
 
 export default function First() {
   const router = useRouter();
   const { userId, loadingUser } = useUser();
+  const { scheduleSmartNotifications } = useNotifications(); // 👈 Novo
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -18,7 +20,6 @@ export default function First() {
     console.log(`[INDEX/SPLASH] userId: ${userId}`);
     console.log(`[INDEX/SPLASH] loadingUser: ${loadingUser}`);
 
-    // Mostra a splash por pelo menos 2 segundos
     const splashTimer = setTimeout(() => {
       setShowSplash(false);
       console.log("[INDEX/SPLASH] ✅ Splash finalizada");
@@ -28,9 +29,12 @@ export default function First() {
   }, []);
 
   useEffect(() => {
-    // Só navega quando:
-    // 1. A splash terminou
-    // 2. O user context terminou de carregar
+    // 👇 Novo: Agenda notificações quando usuário está logado
+    if (!showSplash && !loadingUser && userId) {
+      console.log("[INDEX/SPLASH] 🔔 Agendando notificações inteligentes...");
+      scheduleSmartNotifications(userId);
+    }
+
     if (!showSplash && !loadingUser) {
       console.log("[INDEX/SPLASH] 🚀 Navegando...");
       
@@ -44,7 +48,6 @@ export default function First() {
     }
   }, [showSplash, loadingUser, userId]);
 
-  // Mostra a splash screen
   return (
     <View style={styles.container}>
       <Logo />

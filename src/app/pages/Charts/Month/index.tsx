@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
-import { Alert, Keyboard, KeyboardAvoidingView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Keyboard, KeyboardAvoidingView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import FeelingsChart from '../../../../components/feelingCharts';
 import { API_BASE_URL, ENDPOINTS } from '../../../../config/api'; // Ajuste se necessário
 import { useUser } from '../../../../context/UserContext';
@@ -146,18 +146,7 @@ export default function ChartMonth() {
                         )}
                     </View>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                    <Switch
-                        trackColor={{ false: "#f4f3f4", true: "#81b0ff" }}
-                        thumbColor={isEnabled ? "#ffffff" : "#f4f3f4"}
-                        onValueChange={toggleSwitch}
-                        value={isEnabled}
-                        style={{ marginLeft: '6%' }}
-                    />
-                    <Text style={{ marginTop: '1%', fontWeight: '700', fontFamily: 'Nunito', fontSize: 14 }}>
-                        Compartilhar dados com meu profissional
-                    </Text>
-                </View>
+                
             </LinearGradient>
         </KeyboardAvoidingView>
     );

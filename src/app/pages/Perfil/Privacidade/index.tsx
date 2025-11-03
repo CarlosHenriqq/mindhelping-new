@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ChevronLeft, ShieldCheck, UserX } from 'lucide-react-native';
+import { ChevronLeft, UserX } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
     ScrollView,
@@ -31,27 +31,14 @@ export default function Privacidade() {
                 </View>
 
                 {/* Seção de Conta */}
-                <Text style={styles.sectionTitle}>Conta</Text>
-                <View style={styles.settingsCard}>
-                    <View style={styles.settingItem}>
-                        <ShieldCheck size={22} color={"#4b5563"} />
-                        <Text style={styles.settingItemText}>Tornar perfil privado</Text>
-                        <Switch
-                            trackColor={{ false: "#767577", true: "#60a5fa" }}
-                            thumbColor={isProfilePrivate ? "#2563eb" : "#f4f3f4"}
-                            ios_backgroundColor="#3e3e3e"
-                            onValueChange={() => setIsProfilePrivate(previousState => !previousState)}
-                            value={isProfilePrivate}
-                        />
-                    </View>
-                </View>
+                
 
                 {/* Seção de Dados */}
                 <Text style={styles.sectionTitle}>Dados do Aplicativo</Text>
                 <View style={styles.settingsCard}>
                     <View style={styles.settingItem}>
                         <UserX size={22} color={"#4b5563"} />
-                        <Text style={styles.settingItemText}>Compartilhar dados anonimamente</Text>
+                        <Text style={styles.settingItemText}>Compartilhar meus dados emocionais com meu profissional</Text>
                         <Switch
                             trackColor={{ false: "#767577", true: "#60a5fa" }}
                             thumbColor={shareData ? "#2563eb" : "#f4f3f4"}
@@ -61,7 +48,7 @@ export default function Privacidade() {
                         />
                     </View>
                     <Text style={styles.settingDescription}>
-                        Seus dados de humor e uso são compartilhados de forma anônima para nos ajudar a melhorar o aplicativo.
+                       Seus dados de humor e de uso serão compartilhados com o profissional que te acompanha, permitindo um acompanhamento mais personalizado e eficaz.
                     </Text>
                 </View>
             </ScrollView>

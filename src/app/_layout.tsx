@@ -4,10 +4,8 @@ import { Slot } from 'expo-router';
 import React from "react";
 import { ActivityIndicator, StatusBar, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NotificationProvider } from '../context/NotificationContext'; // 👈 Adicione
 import { UserProvider } from '../context/UserContext';
-
-// ===== NÃO PRECISA MAIS DO AppContent! =====
-// A navegação vai ser controlada pelo index.tsx
 
 export default function Layout() {
   const [fontsLoaded] = useFonts({
@@ -37,7 +35,9 @@ export default function Layout() {
       />
 
       <UserProvider>
-        <Slot />
+        <NotificationProvider>  {/* 👈 Adicione aqui */}
+          <Slot />
+        </NotificationProvider>
       </UserProvider>
     </GestureHandlerRootView>
   );

@@ -11,13 +11,17 @@
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/5bf5c476-38cd-4173-8256-2072eb6e5c89"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mindHelping",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "appVersion"
       }
     },
     "android": {
@@ -27,7 +31,8 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.carloshenriqque.MindHelping",
-      "versionCode": 1
+      "versionCode": 1,
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",

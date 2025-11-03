@@ -170,82 +170,80 @@ export default function AgendarConsulta() {
   }
 
   async function confirmScheduling() {
-    if (!selectedDate || !hourSelected) return;
+  if (!selectedDate || !hourSelected) return;
 
-    const schedule = schedules.find((sch: any) =>
-      sch.initialTime?.startsWith(selectedDate)
-    );
+  const schedule = schedules.find((sch: any) =>
+    sch.initialTime?.startsWith(selectedDate)
+  );
 
-    if (!schedule) {
-      console.warn("Nenhum schedule encontrado para o dia:", selectedDate);
-      return;
-    }
+  if (!schedule) {
+    console.warn("Nenhum schedule encontrado para o dia:", selectedDate);
+    return;
+  }
 
-    try {
-      console.log("📤 Enviando agendamento:", {
+  try {
+    console.log("📤 Enviando agendamento:", {
+      professionalPersonId: id,
+      userPersonId: userId,
+      scheduleId: schedule.id,
+      hour: hourSelected,
+      date: selectedDate,
+    });
+
+    const response = await axios.post(
+      `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
+      {
         professionalPersonId: id,
         userPersonId: userId,
         scheduleId: schedule.id,
         hour: hourSelected,
         date: selectedDate,
-      });
+      }
+    );
 
-      const response = await axios.post(
-        `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
-        {
-          professionalPersonId: id,
-          userPersonId: userId,
-          scheduleId: schedule.id,
-          hour: hourSelected,
-          date: selectedDate,
-        }
-      );
+    console.log("✅ Agendamento realizado:", response.data);
 
-      console.log("✅ Agendamento realizado:", response.data);
+    // Fecha o modal
+    setModalVisible(false);
 
-      // FECHAR O MODAL ANTES DO ALERTA
+    // Mostra alerta de sucesso
+    setTimeout(() => {
+      showSuccess('Sucesso!', 'Agendamento realizado com sucesso!');
+    }, 150);
+
+    // 🔹 Remove o horário localmente (UX imediato)
+    setHorarios((prev) => prev.filter((h) => h !== hourSelected));
+
+    // 🔹 Atualiza as agendas e horários depois de breve delay
+    await new Promise((res) => setTimeout(res, 500));
+
+    console.log("🔄 Atualizando agendas e horários...");
+    await fetchSchedules();
+    await onDayPress({ dateString: selectedDate } as any);
+
+  } catch (error: any) {
+    console.log("❌ Entrou no catch, status:", error.response?.status);
+
+    if (error.response?.status === 500) {
       setModalVisible(false);
-
-      // ADICIONE UM PEQUENO DELAY
       setTimeout(() => {
-        console.log("🎉 Chamando showSuccess..."); // ← LOG AQUI
-        showSuccess(
-          'Sucesso!',
-          'Agendamento realizado com sucesso!'
+        showError(
+          'Erro no Agendamento',
+          'Não é possível agendar uma consulta em horário retroativo. Por favor, tente novamente.'
         );
       }, 300);
 
-      console.log("🔄 Recarregando horários do dia...");
-      await onDayPress({ dateString: selectedDate } as any);
-
-      console.log("🔄 Atualizando lista de agendas...");
-      await fetchSchedules();
-
-    } catch (error: any) {
-      console.log("❌ Entrou no catch, status:", error.response?.status); // ← LOG AQUI
-
-      if (error.response?.status === 500) {
-        console.log("🚨 Chamando showError..."); // ← LOG AQUI
-
-        // FECHAR O MODAL ANTES DO ALERTA
-        setModalVisible(false);
-
-        // DELAY ANTES DE MOSTRAR O ERRO
-        setTimeout(() => {
-          showError(
-            'Erro no Agendamento',
-            'Não é possível agendar uma consulta em horário retroativo. Por favor, tente novamente.'
-          );
-        }, 300);
-
-        setSchedules([]);
-        setVagas([]);
-        setMarkedDates({});
-      }
-      console.error("❌ Erro ao agendar:", error);
-      console.error("❌ Response:", error.response?.data);
+      setSchedules([]);
+      setVagas([]);
+      setMarkedDates({});
     }
+
+    console.error("❌ Erro ao agendar:", error);
+    console.error("❌ Response:", error.response?.data);
   }
+}
+
+
 
 
   function formatDateBR(dateString: string) {

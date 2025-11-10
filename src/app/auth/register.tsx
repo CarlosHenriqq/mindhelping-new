@@ -1,4 +1,4 @@
-import { useFocusEffect, useNavigation, } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { router } from 'expo-router';
 import { Calendar, ChevronDown, ChevronUp, Lock, Mail, User, XCircleIcon } from 'lucide-react-native';
@@ -16,13 +16,15 @@ import {
     View
 } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
+import { CustomAlert, useCustomAlert } from '../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 import { isValidEmail, isValidPassword } from '../../validators/validator';
 
 
 
 export default function SignUp() {
-    const navigation = useNavigation();
+
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [errors, setErrors] = useState({
         name: '',
         birthDate: '',
@@ -73,7 +75,7 @@ export default function SignUp() {
             newErrors.password = 'Senha é obrigatória';
             isValid = false;
         } else if (!isValidPassword(password)) {
-            newErrors.password = 'Senha deve ter ao menos 6 caracteres';
+            showError('Erro ao registrar', 'Senha deve ter ao menos 8 caractéres e um especial');
             isValid = false;
         } else {
             newErrors.password = '';
@@ -82,8 +84,6 @@ export default function SignUp() {
         setErrors(newErrors);
         return isValid;
     };
-
-
 
     async function registerUser() {
         console.log("➡️ registerUser foi chamado!");
@@ -127,17 +127,16 @@ export default function SignUp() {
 
             // pode jogar direto pra tela de login depois
             router.replace("./login");
-        } catch (error:any) {
-            console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
-            alert("Erro ao cadastrar. Tente novamente.");
+        } catch (error: any) {
+            if (error.response?.status === 400)
+                console.error("❌ Erro ao registrar usuário:", error.response?.data || error.message);
+            showError(
+                'Erro ao registrar',
+                'E-mail já cadastrado, tente novamente.'
+            )
         }
     }
 
-
-
-
-
-    // Estados para os campos do formulário
     const [name, setName] = useState('');
     const [cpf, setCPF] = useState('');
     const [birthDate, setBirthDate] = useState('');
@@ -281,7 +280,8 @@ export default function SignUp() {
         >
             <KeyboardAvoidingView
                 style={styles.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
             >
                 <View style={styles.header}>
 
@@ -401,7 +401,13 @@ export default function SignUp() {
                             }}>Faça Login.</Text>
                         </TouchableOpacity>
                     </View>
-
+                    <CustomAlert
+                        visible={alertConfig.visible}
+                        type={alertConfig.type}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={hideAlert}
+                    />
                 </ScrollView>
 
             </KeyboardAvoidingView>

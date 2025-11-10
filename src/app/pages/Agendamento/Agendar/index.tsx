@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -35,7 +36,7 @@ export interface Vaga {
 
 export default function AgendarConsulta() {
   const { id, returnTo } = useLocalSearchParams();
-  
+
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -47,6 +48,7 @@ export default function AgendarConsulta() {
   const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
   const [modalVisible, setModalVisible] = useState(false);
   const [hourSelected, setHourSelected] = useState<string | null>(null);
+  const [selectedHourlyMap, setSelectedHourlyMap] = useState<Map<string, any> | null>(null); // 🔥 NOVO
 
   useEffect(() => {
     async function fetchProf() {
@@ -159,89 +161,121 @@ export default function AgendarConsulta() {
       const response = await axios.get(url);
       const hourlies = response.data.hourlies;
 
-      const availableHours = hourlies
-        .filter((h: any) => !h.isOcuped)
-        .map((h: any) => h.hour);
+      const availableHourlies = hourlies.filter((h: any) => !h.isOcuped);
 
+      // 🔥 Criar mapa de hora -> hourly completo
+      const hourlyMap = new Map(
+        availableHourlies.map((h: any) => [h.hour, h])
+      );
+
+      // 🔥 Salvar o mapa
+      setSelectedHourlyMap(hourlyMap);
+
+      const availableHours = availableHourlies.map((h: any) => h.hour);
       setHorarios(availableHours);
+
+      console.log("✅ Hourlies disponíveis:", availableHourlies);
+
     } catch (error) {
       console.log("Erro ao buscar horários:", error);
     }
   }
 
+
   async function confirmScheduling() {
-  if (!selectedDate || !hourSelected) return;
+    if (!selectedDate || !hourSelected) return;
 
-  const schedule = schedules.find((sch: any) =>
-    sch.initialTime?.startsWith(selectedDate)
-  );
+    const schedule = schedules.find((sch: any) =>
+      sch.initialTime?.startsWith(selectedDate)
+    );
 
-  if (!schedule) {
-    console.warn("Nenhum schedule encontrado para o dia:", selectedDate);
-    return;
-  }
+    if (!schedule) {
+      console.warn("Nenhum schedule encontrado para o dia:", selectedDate);
+      return;
+    }
 
-  try {
-    console.log("📤 Enviando agendamento:", {
-      professionalPersonId: id,
-      userPersonId: userId,
-      scheduleId: schedule.id,
-      hour: hourSelected,
-      date: selectedDate,
-    });
+    const hourly = selectedHourlyMap?.get(hourSelected);
 
-    const response = await axios.post(
-      `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
-      {
+    if (!hourly) {
+      console.error("❌ Hourly não encontrado para o horário:", hourSelected);
+      showError('Erro', 'Não foi possível encontrar informações do horário selecionado');
+      return;
+    }
+
+    console.log("💾 Hourly selecionado:", hourly);
+    console.log("💾 ID do hourly:", hourly.id);
+
+    try {
+      const payload = {
         professionalPersonId: id,
         userPersonId: userId,
         scheduleId: schedule.id,
+        hourlyId: hourly.id,
         hour: hourSelected,
         date: selectedDate,
-      }
-    );
+      };
 
-    console.log("✅ Agendamento realizado:", response.data);
+      console.log("📤 Enviando agendamento:", payload);
 
-    // Fecha o modal
-    setModalVisible(false);
+      const response = await axios.post(
+        `${API_BASE_URL}${ENDPOINTS.SCHEDULING}`,
+        payload
+      );
 
-    // Mostra alerta de sucesso
-    setTimeout(() => {
-      showSuccess('Sucesso!', 'Agendamento realizado com sucesso!');
-    }, 150);
+      console.log("✅ Agendamento realizado:", response.data);
 
-    // 🔹 Remove o horário localmente (UX imediato)
-    setHorarios((prev) => prev.filter((h) => h !== hourSelected));
+      // 🔥 USAR O HOURLY.ID COMO CHAVE DIRETAMENTE
+      // Já que não temos o appointmentId, vamos criar um mapeamento diferente
+      const cacheData = {
+        hourlyId: hourly.id,
+        date: selectedDate,
+        hour: hourSelected,
+        professionalId: id,
+        userId: userId,
+        scheduleId: schedule.id,
+        createdAt: new Date().toISOString()
+      };
 
-    // 🔹 Atualiza as agendas e horários depois de breve delay
-    await new Promise((res) => setTimeout(res, 500));
+      // Salvar usando uma chave composta: userId + date + hour
+      const cacheKey = `appointment_${userId}_${selectedDate}_${hourSelected}`;
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
 
-    console.log("🔄 Atualizando agendas e horários...");
-    await fetchSchedules();
-    await onDayPress({ dateString: selectedDate } as any);
+      console.log("💾 ============ SALVANDO NO CACHE ============");
+      console.log("💾 Cache key:", cacheKey);
+      console.log("💾 Cache data:", cacheData);
+      console.log("💾 ============================================");
 
-  } catch (error: any) {
-    console.log("❌ Entrou no catch, status:", error.response?.status);
-
-    if (error.response?.status === 500) {
       setModalVisible(false);
+
       setTimeout(() => {
-        showError(
-          'Erro no Agendamento',
-          'Não é possível agendar uma consulta em horário retroativo. Por favor, tente novamente.'
-        );
-      }, 300);
+        showSuccess('Sucesso!', 'Agendamento realizado com sucesso!');
+      }, 150);
 
-      setSchedules([]);
-      setVagas([]);
-      setMarkedDates({});
+      setHorarios((prev) => prev.filter((h) => h !== hourSelected));
+
+      await new Promise((res) => setTimeout(res, 500));
+      await fetchSchedules();
+
+    } catch (error: any) {
+      console.log("❌ Erro ao agendar:", error.response?.status);
+
+      if (error.response?.status === 500) {
+        setModalVisible(false);
+        setTimeout(() => {
+          showError(
+            'Erro no Agendamento',
+            'Não é possível agendar uma consulta em horário retroativo.'
+          );
+        }, 300);
+
+        setSchedules([]);
+        setVagas([]);
+        setMarkedDates({});
+      }
+
+      console.error("❌ Erro:", error);
     }
-
-    console.error("❌ Erro ao agendar:", error);
-    console.error("❌ Response:", error.response?.data);
   }
-}
 
 
 
@@ -268,29 +302,29 @@ export default function AgendarConsulta() {
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-   const handleGoBack = () => {
-   
-  if (returnTo) {
-    router.replace(returnTo as any);
-  } else {
-    router.replace('/pages/Home');
-  }
-};
+  const handleGoBack = () => {
+
+    if (returnTo) {
+      router.replace(returnTo as any);
+    } else {
+      router.replace('/pages/Home');
+    }
+  };
 
 
 
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient colors={['#eff6ff', '#dbeafe']} style={{ flex: 1 }}>
-         
+
         <ScrollView
           bounces={false}
           contentContainerStyle={{ flexGrow: 1 }} // ← IMPORTANTE!
         >
           <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
-          <ChevronLeft color="#333" size={24} />
-          <Text style={styles.textoVoltar}>Voltar</Text>
-        </TouchableOpacity>
+            <ChevronLeft color="#333" size={24} />
+            <Text style={styles.textoVoltar}>Voltar</Text>
+          </TouchableOpacity>
           <View style={styles.screen}>
             <Text style={styles.title}>Agendamento de consulta</Text>
 
@@ -444,13 +478,13 @@ const styles = StyleSheet.create({
   botaoVoltar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop:50,
-    marginLeft:10
+    marginTop: 50,
+    marginLeft: 10
   },
   textoVoltar: {
     fontSize: 16,
     color: '#333',
-   
+
   },
   card: {
     borderWidth: 1,

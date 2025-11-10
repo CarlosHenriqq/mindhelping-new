@@ -24,5 +24,7 @@ export const ENDPOINTS = {
   RECOVER_PASSWORD: '/persons/forgot-password',
   VERIFY_CODE:'/persons/verify-reset-password-code', 
   RESET_PASSWORD:'/users/password' ,
+  DELETE_USER:(personId:string) =>`/persons/${personId}`,
+  CANCEL_SCHEDULING:(hourlyId:string, schedulingId:string)=>`/hourlies/${hourlyId}/${schedulingId}`,
   LOGIN: '/persons/authenticate'
 };

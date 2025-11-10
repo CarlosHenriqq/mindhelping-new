@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Logo from '../../../assets/logo.svg';
 import Mascote from '../../../assets/mascote.svg';
+import { CustomAlert, useCustomAlert } from '../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 import { useUser } from '../../context/UserContext';
 
@@ -13,6 +14,7 @@ const { width, height } = Dimensions.get('window');
 
 export default function Login() {
     const router = useRouter();
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [toggleCheck, setToggleCheck] = useState(false);
     const [login, setLogin] = useState('');
     const [senha, setSenha] = useState('');
@@ -22,7 +24,12 @@ export default function Login() {
 
     async function handleLogin() {
         if (!login || !senha) {
-            Alert.alert("Aviso", "Preencha e-mail e senha");
+
+            showError(
+                'Ops, algo deu errado!',
+                'Preencha todos os campos e tente novamente'
+            );
+
             return;
         }
 
@@ -35,7 +42,7 @@ export default function Login() {
             });
 
             // Certifique-se que o caminho no 'response.data' está correto
-            const id = response.data?.user?.userId; 
+            const id = response.data?.user?.userId;
 
             // ----- INÍCIO DO DEBUG -----
             console.log("[LOGIN] Resposta completa da API:", JSON.stringify(response.data, null, 2));
@@ -44,36 +51,42 @@ export default function Login() {
             // ----- FIM DO DEBUG -----
 
             if (!id) {
-                 Alert.alert("Erro de Login", "A API não retornou um ID de usuário.");
-                 setLoading(false);
-                 return;
+                Alert.alert("Erro de Login", "A API não retornou um ID de usuário.");
+                setLoading(false);
+                return;
             }
 
             // passa o "toggleCheck" pro contexto pra decidir se grava
             await setUserId(id, toggleCheck);
-            
+
             // Use .replace() para "substituir" a tela de login na pilha de navegação.
             // Isso impede que o usuário clique em "Voltar" e caia na tela de login
             // depois de já estar logado.
             router.replace('/pages/Home');
 
-        } catch (error) {
+        } catch (error: any) {
+
+            showError(
+                'Erro ao logar',
+                'E-mail ou senha incorretos'
+            );
+
             console.error("[LOGIN] Erro na requisição de login:", error.response?.data || error.message);
-            Alert.alert("Erro", "Falha ao realizar login. Verifique suas credenciais.");
+
         } finally {
             setLoading(false);
         }
     }
 
-    function handleRecover(id) {
-    router.replace({
-      pathname: "/auth/recoverPassword",
-      params: {
-        id,
-        returnTo: '/auth/login' // ou a rota que você quiser
-      }
-    })
-  }
+    function handleRecover(id: string) {
+        router.replace({
+            pathname: "/auth/recoverPassword",
+            params: {
+                id,
+                returnTo: '/auth/login' // ou a rota que você quiser
+            }
+        })
+    }
     return (
         <ImageBackground
             source={require('../../../assets/images/gradiente.png')}
@@ -144,6 +157,13 @@ export default function Login() {
                             <Text style={styles.signupLink}>Inscreva-se</Text>
                         </TouchableOpacity>
                     </View>
+                    <CustomAlert
+                        visible={alertConfig.visible}
+                        type={alertConfig.type}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={hideAlert}
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </ImageBackground>

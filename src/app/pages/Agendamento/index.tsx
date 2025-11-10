@@ -94,8 +94,8 @@ export default function Profissional() {
                   <Text style={styles.info}>{item.phone}</Text>
                   <Text style={styles.info}>{`${item.address}, ${item.neighborhood}, ${item.city} - ${item.uf}`}</Text>
                 </View>
-                <TouchableOpacity onPress={() => handleAgendar(item.id)}>
-                  <Text style={{ fontFamily: 'Nunito', textDecorationLine: 'underline', fontWeight: '700', alignSelf:'flex-start', marginTop:10, fontSize:16, marginBottom:10, color:'blue' }}>Agendar</Text>
+                <TouchableOpacity onPress={() => handleAgendar(item.id)} style={{borderWidth:1, borderRadius:20, width:'30%', marginTop:20, backgroundColor:'#f0f0f0'}}>
+                  <Text style={{ fontFamily: 'Nunito', fontWeight: '700', alignSelf:'center', justifyContent:'center', fontSize:16, color:'black',}}>Agendar</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -129,6 +129,7 @@ const styles = StyleSheet.create({
   nome: {
     fontSize: 14,
     fontWeight: "bold",
+    color:'black'
   },
   info: {
     fontSize: 12,

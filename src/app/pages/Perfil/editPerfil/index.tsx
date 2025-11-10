@@ -5,15 +5,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { AlertCircle, Calendar, Camera, ChevronDown, ChevronLeft, ChevronUp, IdCard, Mail, MapPin, Phone, User } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
 import FotoPerfil from '../../../../../assets/mascote.svg';
+import { CustomAlert, useCustomAlert } from '../../../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
 import { useUser } from "../../../../context/UserContext";
 
 export default function EditPerfil() {
-    const { userId } = useUser();
+    const { userId, logout } = useUser();
     const { returnTo } = useLocalSearchParams();
+    const [showConfirmDeleteModal, setShowConfirmDeleteModal] = useState(false);
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [userData, setUserData] = useState(null)
     const [userPhoto, setUserPhoto] = useState(null);
     const [name, setName] = useState('');
@@ -112,12 +115,30 @@ export default function EditPerfil() {
             );
 
             console.log('Perfil atualizado:', response.data);
-            alert('Perfil atualizado com sucesso!');
+            showSuccess('Sucesso', 'Perfil atualizado com sucesso!');
         } catch (error: any) {
             console.error('Erro ao atualizar perfil:', error.response || error.message);
-            alert('Erro ao atualizar perfil. Tente novamente.');
+            showError('Erro ao atualizar perfil', 'Tente novamente');
         }
     };
+
+    const deleteProfile = async (userId: string) => {
+        try {
+            const response = await axios.delete(`${API_BASE_URL}${ENDPOINTS.DELETE_USER(userId)}`);
+            showSuccess('Conta excluída', 'Sua conta foi excluída com sucesso');
+            
+            // Limpar o userId do contexto
+            await logout();
+            
+            // Redirecionar após 2 segundos
+            setTimeout(() => {
+                router.replace('/auth/login');
+            }, 2000);
+        } catch (error: any) {
+            console.error('Erro ao excluir conta:', error.response || error.message);
+            showError('Erro ao excluir', 'Tente novamente');
+        }
+    }
 
     const handleChangePhoto = async () => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -160,7 +181,7 @@ export default function EditPerfil() {
         }
     };
 
-    const buscarEnderecoPorCEP = async (cep) => {
+    const buscarEnderecoPorCEP = async (cep:string) => {
         const cepLimpo = cep.replace(/\D/g, '');
 
         if (cepLimpo.length !== 8) {
@@ -236,6 +257,13 @@ export default function EditPerfil() {
             router.replace(returnTo as any);
         } else {
             router.replace('/pages/Home');
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (userId) {
+            await deleteProfile(userId);
+            setShowConfirmDeleteModal(false);
         }
     };
 
@@ -466,11 +494,42 @@ export default function EditPerfil() {
                             <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSaveProfile}>
                                 <Text style={styles.buttonText}>Salvar alterações</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.button, styles.deleteButton]}>
+                            <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={() => setShowConfirmDeleteModal(true)}>
                                 <Text style={[styles.buttonText, styles.deleteButtonText]}>Deletar conta</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
+                    <Modal animationType="fade" transparent visible={showConfirmDeleteModal} onRequestClose={() => setShowConfirmDeleteModal(false)}>
+                        <View style={styles.modalContainer}>
+                            <View style={styles.modalContent}>
+                                <Text style={styles.modalTitle}>Confirmar Exclusão</Text>
+                                <Text style={styles.modalBodyText}>
+                                    Tem certeza que deseja excluir sua conta? Esta ação não pode ser desfeita.
+                                </Text>
+                                <View style={styles.modalButtonRow}>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, { backgroundColor: "#6c757d", width: '100%' }]}
+                                        onPress={() => setShowConfirmDeleteModal(false)}
+                                    >
+                                        <Text style={styles.modalButtonText}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.modalButton, { backgroundColor: "#dc3545", width: '100%' }]}
+                                        onPress={handleConfirmDelete}
+                                    >
+                                        <Text style={styles.modalButtonText}>Excluir</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        </View>
+                    </Modal>
+                     <CustomAlert
+                        visible={alertConfig.visible}
+                        type={alertConfig.type}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={hideAlert}
+                    />
                 </ScrollView>
             </KeyboardAvoidingView>
         </LinearGradient>
@@ -489,8 +548,7 @@ const styles = StyleSheet.create({
     botaoVoltar: {
         flexDirection: 'row',
         alignItems: 'center',
-       
-        marginTop:10
+        marginTop: 10
     },
     textoVoltar: {
         fontSize: 16,
@@ -542,7 +600,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         marginTop: 12,
         marginBottom: 4,
-        textAlign:'center'
+        textAlign: 'center'
     },
     warningContainer: {
         flexDirection: "row",
@@ -591,6 +649,68 @@ const styles = StyleSheet.create({
         marginBottom: 15,
         borderWidth: 1,
         borderColor: '#e5e7eb',
+    },
+    modalBodyText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 20,
+        color: '#333'
+    },
+    modalButtonRow: {
+        gap: 10,
+        width: '80%',
+    },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        width: '80%',
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 20,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+    },
+     modalButton: {
+        padding: 12,
+        borderRadius: 20,
+        width: '80%',
+        alignItems: 'center',
+        backgroundColor: '#2980B9',
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        shadowOffset: { width: 2, height: 2 },
+        elevation: 5,
+    },
+    modalButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    modalButtonCancel: {
+        backgroundColor: '#fc445a',
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 20,
+        width: '80%',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        shadowOffset: { width: 2, height: 2 },
+        elevation: 5,
+    },
+    modalButtonTextCancel: {
+        color: 'white',
+        fontWeight: 'bold',
     },
     input: {
         flex: 1,

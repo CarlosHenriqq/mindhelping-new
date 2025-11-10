@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import * as FileSystem from "expo-file-system/legacy";
@@ -8,6 +9,7 @@ import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, To
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
 import FotoPerfil from '../../../../assets/mascote.svg';
+import { CustomAlert, useCustomAlert } from '../../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from '../../../context/UserContext';
 const width = Dimensions.get('window').width;
@@ -62,11 +64,12 @@ export default function Home() {
         { text: "TEDIO", image: require('../../../../assets/images/slide/tedio.png') },
         { text: "NÃO_SEI_DIZER", image: require('../../../../assets/images/slide/indeciso.png') },
     ]);
-
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [userName, setUserName] = useState('');
     const { userId, loadingUser } = useUser();
+    const [isCanceled, setIsCanceled] = useState(false);
     const [userPhoto, setUserPhoto] = useState(null);
-
+    const [schedulingId, setSchedulingId] = useState('');
     const [modalSelected, setModalSelect] = useState(false);
     const [inputText, setInputText] = useState('');
     const [selectedFeelingIndex, setSelectedFeelingIndex] = useState(0);
@@ -76,7 +79,7 @@ export default function Home() {
 
     const fetchNextAppointment = async () => {
         if (!userId) {
-            console.log("ID do usuário não encontrado. Não é possível buscar agendamento.");
+            console.log("ID do usuário não encontrado.");
             return null;
         }
 
@@ -88,29 +91,49 @@ export default function Home() {
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    console.log("Nenhum agendamento futuro encontrado para este usuário.");
+                    console.log("Nenhum agendamento futuro encontrado.");
                     return null;
                 }
                 throw new Error(`Erro na API: Status ${response.status}`);
             }
 
             const apiResponse = await response.json();
+            console.log("📋 Resposta completa da API:", JSON.stringify(apiResponse, null, 2));
 
             if (apiResponse && apiResponse.schedulingDetails) {
                 const details = apiResponse.schedulingDetails;
                 const appointmentDate = new Date(details.date);
 
-                // 🔹 Verifica se a data já passou
                 const now = new Date();
                 if (appointmentDate < now) {
-                    console.log("Agendamento já passou. Ignorando.");
+                    console.log("Agendamento já passou.");
                     return null;
                 }
 
+                // 🔥 BUSCAR USANDO A CHAVE COMPOSTA
+                const dateString = appointmentDate.toISOString().split('T')[0];
+                const cacheKey = `appointment_${userId}_${dateString}_${details.hour}`;
+
+                console.log("💾 Buscando do cache com key:", cacheKey);
+
+                const cachedDataString = await AsyncStorage.getItem(cacheKey);
+                let cachedHourlyId = null;
+
+                if (cachedDataString) {
+                    const cachedData = JSON.parse(cachedDataString);
+                    cachedHourlyId = cachedData.hourlyId;
+                    console.log("💾 Dados do cache:", cachedData);
+                }
+
+                
+                
+
                 return {
-                    id: details.id,
+                    schedulingId: details.id,
+                    hourlyId: details.hourlyId,
                     professionalName: details.nameProfessional,
                     date: appointmentDate,
+                    hour: details.hour,
                     title: 'Psicólogo(a)',
                     phone: details.phoneProfessional,
                     email: details.emailProfessional,
@@ -120,7 +143,7 @@ export default function Home() {
 
             return null;
         } catch (error) {
-            console.error("Erro ao buscar agendamento da API:", error);
+            console.error("Erro ao buscar agendamento:", error);
             return null;
         }
     };
@@ -162,7 +185,7 @@ export default function Home() {
             });
 
             console.log("Sentimento registrado com sucesso:", response.data);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao registrar sentimento:", error.response?.data || error.message);
         }
 
@@ -201,22 +224,78 @@ export default function Home() {
             const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER_DETAILS(userId)}`);
             const dados = response.data.profile;
 
-            
+
             setUserName(dados.nameUser.split(' ')[0]);
 
-           
+
         } catch (error) {
             console.log("Erro ao carregar último sentimento:", error);
         }
     };
+    const cancelAgendamento = async () => {
+        if (!nextAppointment || !nextAppointment.hourlyId) {
+            showError('Erro', 'Não foi possível identificar o agendamento');
+            return;
+        }
 
+        try {
+            const url = `${API_BASE_URL}${ENDPOINTS.CANCEL_SCHEDULING(nextAppointment.hourlyId)/(nextAppointment.schedulingId)}`;
+
+            console.log("🗑️ Cancelando agendamento com hourlyId:", nextAppointment.hourlyId);
+            console.log("📍 URL:", url);
+
+            const response = await axios.patch(url, {}, {
+                timeout: 10000,
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            setIsCanceled(true);
+
+            // 🔥 Limpar do cache usando a chave composta
+            const dateString = new Date(nextAppointment.date).toISOString().split('T')[0];
+            const cacheKey = `appointment_${userId}_${dateString}_${nextAppointment.hour}`;
+            await AsyncStorage.removeItem(cacheKey);
+
+            console.log("🗑️ Cache removido:", cacheKey);
+
+            showSuccess('Cancelado!', 'Seu agendamento foi cancelado com sucesso.');
+
+            // Atualizar
+            const appointmentData = await fetchNextAppointment();
+            setNextAppointment(appointmentData);
+
+        } catch (error: any) {
+            console.error("❌ Erro ao cancelar:", error.response?.data || error.message);
+            showError('Erro ao Cancelar', 'Não foi possível cancelar o agendamento.');
+        }
+    };
     // useEffect só para carregar na primeira vez
     useEffect(() => {
         loadLocalPhoto();
         loadLastFeeling();
-        
-    }, []);
 
+    }, []);
+    useEffect(() => {
+        const clearOldCache = async () => {
+            try {
+                const keys = await AsyncStorage.getAllKeys();
+                const hourlyKeys = keys.filter(k => k.startsWith('hourly_'));
+                console.log("🗑️ Limpando cache antigo:", hourlyKeys);
+                if (hourlyKeys.length > 0) {
+                    await AsyncStorage.multiRemove(hourlyKeys);
+                    console.log("✅ Cache limpo!");
+                }
+            } catch (error) {
+                console.error("Erro ao limpar cache:", error);
+            }
+        };
+
+        clearOldCache();
+        loadLocalPhoto();
+        loadLastFeeling();
+    }, []);
 
 
     return (
@@ -293,6 +372,17 @@ export default function Home() {
                                             <Text style={styles.dadosLocConsulta}>{nextAppointment.address}</Text>
 
                                         </View>
+                                        <View>
+                                            <TouchableOpacity style={{ borderWidth: 1, alignSelf:'center',borderColor: 'red', borderRadius: 20, width: '65%', marginTop: 10 }} onPress={cancelAgendamento} disabled={isCanceled}>
+                                                <Text style={{
+                                                    color: 'red', fontWeight: 'bold', padding: 5, textAlign: 'center',
+                                                    shadowRadius: 20,
+                                                    shadowOpacity: 0.5,
+                                                    shadowOffset: { width: 0, height: 2 },
+                                                    elevation: 5,
+                                                }}>{isCanceled ? 'CANCELADO' : 'Cancelar agendamento'}</Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </>
                                 ) : (
                                     <Text style={{ fontWeight: 'bold', textAlign: 'center' }}>Nenhuma consulta agendada</Text>
@@ -357,6 +447,13 @@ export default function Home() {
                         </View>
                     </View>
                 )}
+                <CustomAlert
+                    visible={alertConfig.visible}
+                    type={alertConfig.type}
+                    title={alertConfig.title}
+                    message={alertConfig.message}
+                    onClose={hideAlert}
+                />
             </LinearGradient>
         </View>
     );
@@ -392,16 +489,14 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        borderColor: "#000000",
-        borderWidth: 2,
-        // ❌ REMOVA: top:'5%'
+        
+     
     },
     fotoPlaceholder: {
         width: 50,
         height: 50,
         borderRadius: 25,
-        borderColor: "#00000060",
-        borderWidth: 2,
+       
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
@@ -544,8 +639,6 @@ const styles = StyleSheet.create({
     },
     searchProf: {
         marginTop: '5%',
-        marginLeft: '5%',
-
         borderColor: '#000000',
         width: '50%',
         padding: 10,

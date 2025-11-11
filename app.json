@@ -32,7 +32,14 @@
       "edgeToEdgeEnabled": true,
       "package": "com.carloshenriqque.MindHelping",
       "versionCode": 1,
-      "runtimeVersion": "1.0.0"
+      "runtimeVersion": "1.0.0",
+      "softwareKeyboardLayoutMode": "pan",
+      "navigationBar": {
+        "visible": false,
+        "barStyle": "light-content",
+        "backgroundColor": "#00000000"
+      },
+      "userInterfaceStyle": "automatic"
     },
     "web": {
       "bundler": "metro",

@@ -5,10 +5,23 @@ import { router } from "expo-router";
 import { ChevronLeft } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Calendar } from 'react-native-calendars';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
 import FeelingsChart from "../../../components/feelingCharts";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from '../../../context/UserContext';
+
+// ✅ CONFIGURE O LOCALE AQUI, FORA DO COMPONENTE
+LocaleConfig.locales['pt-br'] = {
+  monthNames: [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ],
+  monthNamesShort: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+  dayNames: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'],
+  dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+  today: 'Hoje'
+};
+LocaleConfig.defaultLocale = 'pt-br';
 
 const Analystic = () => {
   const navigation = useNavigation();
@@ -18,7 +31,7 @@ const Analystic = () => {
   const [maxValue, setMaxValue] = useState(1);
   const [visibleDate, setVisibleDate] = useState(new Date());
   const [feelingsList, setFeelingsList] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false); // Modal para motivos
+  const [modalVisible, setModalVisible] = useState(false);
 
   const feelingColors: any = {
     FELIZ: '#edd892',
@@ -47,18 +60,16 @@ const Analystic = () => {
       if (response.data && response.data.feelings) {
         const feelings = response.data.feelings;
 
-
         const counts = {
           FELIZ: 0,
           TRISTE: 0,
           RAIVA: 0,
           ANSIOSO: 0,
           TEDIO: 0,
-          NEUTRO: 0  // 👈 Mantém NEUTRO aqui
+          NEUTRO: 0
         };
 
         feelings.forEach(f => {
-          // 👇 Converte NÃO_SEI_DIZER para NEUTRO
           const description = f.description === 'NÃO_SEI_DIZER' ? 'NEUTRO' : f.description;
           if (counts[description] !== undefined) counts[description]++;
         });
@@ -76,6 +87,7 @@ const Analystic = () => {
       console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
     }
   };
+
   useFocusEffect(
     React.useCallback(() => {
       StatusBar.setBackgroundColor('#A3D8F4');
@@ -101,7 +113,8 @@ const Analystic = () => {
               const ano = date.getFullYear();
               return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
             }}
-            style={{ width: 350 }}
+            style={{ width: 320, backgroundColor: 'transparent'}}
+            firstDay={0} // ✅ Adicione isso - 0 = Domingo (padrão brasileiro)
             onDayPress={(day) => {
               const pressedDate = new Date(day.dateString);
               setSelectedDay(pressedDate);
@@ -135,7 +148,6 @@ const Analystic = () => {
               <ScrollView style={{ maxHeight: 300, width: '100%' }}>
                 {feelingsList.length > 0 ? (
                   Object.entries(feelingsList.reduce((acc: any, f: any) => {
-                    // 👇 Converte NÃO_SEI_DIZER para NEUTRO
                     const description = f.description === 'NÃO_SEI_DIZER' ? 'NEUTRO' : f.description;
                     if (!acc[description]) acc[description] = [];
                     if (f.motive) acc[description].push(f.motive);
@@ -173,6 +185,8 @@ const Analystic = () => {
 
 export default Analystic;
 
+
+
 const styles = StyleSheet.create({
   background: {
     flex: 1
@@ -186,7 +200,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 5,
-    marginTop: StatusBar.currentHeight || '9%',
+    marginTop: StatusBar.currentHeight || 50,
   },
   botaoVoltar: {
     padding: 10,
@@ -218,7 +232,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 10,
-    margin: '2%',
+    margin: 10,
   },
   chartTitle: {
     fontSize: 18,

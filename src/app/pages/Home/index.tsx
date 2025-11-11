@@ -239,7 +239,7 @@ export default function Home() {
         }
 
         try {
-            const url = `${API_BASE_URL}${ENDPOINTS.CANCEL_SCHEDULING(nextAppointment.hourlyId)/(nextAppointment.schedulingId)}`;
+            const url = `${API_BASE_URL}${ENDPOINTS.CANCEL_SCHEDULING(nextAppointment.hourlyId,nextAppointment.schedulingId)}`;
 
             console.log("🗑️ Cancelando agendamento com hourlyId:", nextAppointment.hourlyId);
             console.log("📍 URL:", url);

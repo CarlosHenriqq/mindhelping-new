@@ -95,7 +95,16 @@ const Metas = () => {
 
     const handlePress = async (metaId: string) => {
         try {
-            // Atualiza o contador no backend e marca como executada
+            const metaAtual = metas.find(m => m.id === metaId);
+            if (!metaAtual) return;
+
+            // Bloqueia se a meta já estiver completa
+            if (metaAtual.daysCompleted >= metaAtual.totalDias) {
+                alert("🎯 Essa meta já foi concluída!");
+                return;
+            }
+
+            // Atualiza no backend
             await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_COUNTER(metaId, userId)}`);
             await axios.patch(`${API_BASE_URL}${ENDPOINTS.GOAL_USER_EXECUTE(metaId, userId)}`);
 
@@ -103,20 +112,19 @@ const Metas = () => {
             setMetas(prevMetas =>
                 prevMetas.map(meta => {
                     if (meta.id === metaId) {
-                        const newDaysCompleted = meta.daysCompleted + 1;
+                        const newDaysCompleted = Math.min(meta.daysCompleted + 1, meta.totalDias);
                         return {
                             ...meta,
                             daysCompleted: newDaysCompleted,
-                            disabled: true, // se já executou hoje
+                            disabled: true,
                         };
                     }
                     return meta;
                 })
             );
 
-            // Mostra celebração se a meta terminou
-            const metaAtualizada = metas.find(m => m.id === metaId);
-            if (metaAtualizada && metaAtualizada.daysCompleted + 1 >= metaAtualizada.totalDias) {
+            // Exibe celebração se finalizou
+            if (metaAtual.daysCompleted + 1 >= metaAtual.totalDias) {
                 setShowCelebration(true);
             }
 
@@ -126,6 +134,7 @@ const Metas = () => {
             loadMetas();
         }
     };
+
 
 
     const excluirMeta = async (metaId: string) => {
@@ -166,7 +175,7 @@ const Metas = () => {
             } else {
                 // Cria nova meta
                 await axios.post(`${API_BASE_URL}${ENDPOINTS.GOAL}`, {
-                    userPersonId:userId,
+                    userPersonId: userId,
                     description,
                     numberDays,
                 });
@@ -412,7 +421,8 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: "center",
-        bottom: 19
+        bottom: 19,
+        left: 30
     },
     newMetaContainer: {
         position: 'absolute',

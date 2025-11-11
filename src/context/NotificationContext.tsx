@@ -34,9 +34,9 @@ const NotificationContext = createContext<NotificationContextType>({
     appointmentReminders: true,
     newsAndUpdates: false,
   },
-  updateSetting: async () => {},
+  updateSetting: async () => { },
   loadingSettings: true,
-  scheduleSmartNotifications: async () => {},
+  scheduleSmartNotifications: async () => { },
 });
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -109,9 +109,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const loadSettings = async () => {
     try {
       console.log('[NotificationContext] 📥 Carregando preferências...');
-      
+
       const stored = await AsyncStorage.getItem('notificationSettings');
-      
+
       if (stored) {
         const parsed = JSON.parse(stored);
         console.log('[NotificationContext] ✅ Preferências carregadas:', parsed);
@@ -170,15 +170,30 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Verifica se o usuário registrou humor hoje e agenda lembrete se não registrou
   const checkAndScheduleMoodReminder = async (userId: string) => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const response = await axios.get(
-        `${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`
-      );
+      const today = new Date();
+      const start = new Date(today);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(today);
+      end.setHours(23, 59, 59, 999);
+
+      const formatDate = (date: Date | string) => {
+        const d = new Date(date);
+        return d.toISOString().split('T')[0]; // "2025-11-10"
+      };
+
+      const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.FEELINGS_USER(userId)}`, {
+        params: {
+          startDay: formatDate(start),
+          endDay: formatDate(end),
+        },
+      });
+
+
 
       // 🔥 PROTEÇÃO: Garante que response.data é um array
       const feelings = Array.isArray(response.data) ? response.data : [];
-      
+
       if (feelings.length === 0) {
         console.log('[Notifications] ℹ️ Nenhum sentimento encontrado no histórico');
       }
@@ -191,7 +206,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       if (!hasMoodToday) {
         console.log('[Notifications] 📝 Nenhum sentimento registrado hoje');
-        
+
         const now = new Date();
         const currentHour = now.getHours();
 
@@ -246,7 +261,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const checkAndScheduleAppointmentReminders = async (userId: string) => {
     try {
       const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.SCHEDULING_USER(userId)}`);
-      
+
       // 🔥 PROTEÇÃO: Garante que response.data é um array
       const appointments = Array.isArray(response.data) ? response.data : [];
 
@@ -266,7 +281,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }
 
         const appointmentDate = new Date(appointment.date + 'T' + appointment.time);
-        
+
         // Agenda para 1 dia antes, às 18h
         const reminderDate = new Date(appointmentDate);
         reminderDate.setDate(reminderDate.getDate() - 1);
@@ -280,8 +295,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               title: '📅 Consulta amanhã!',
               body: `Você tem consulta${appointment.professional ? ` com ${appointment.professional}` : ''} amanhã às ${appointment.time}.`,
               sound: true,
-              data: { 
-                type: 'appointment-reminder', 
+              data: {
+                type: 'appointment-reminder',
                 appointmentId: appointment.id,
                 screen: '/pages/Consultas'
               },
@@ -311,7 +326,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const checkAndScheduleGoalReminders = async (userId: string) => {
     try {
       const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userId)}`);
-      
+
       // 🔥 PROTEÇÃO: Garante que response.data é um array
       const goals = Array.isArray(response.data) ? response.data : [];
 
@@ -342,8 +357,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               title: '🎯 Lembrete de Meta',
               body: `A meta "${goal.title}" vence amanhã! Já executou?`,
               sound: true,
-              data: { 
-                type: 'goal-reminder', 
+              data: {
+                type: 'goal-reminder',
                 goalId: goal.id,
                 screen: '/pages/Metas'
               },
@@ -370,54 +385,63 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   // Agenda relatório mensal (último dia de cada mês às 20h)
-  const scheduleMonthlyReport = async () => {
-    try {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      // Último dia do mês atual
-      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-      lastDayOfMonth.setHours(20, 0, 0, 0);
+  // Agenda relatório mensal (último dia de cada mês às 20h)
+const scheduleMonthlyReport = async () => {
+  try {
+    // Verifica se já existe agendamento para evitar duplicar
+    const existing = await Notifications.getAllScheduledNotificationsAsync();
+    const alreadyScheduled = existing.some(n => n.identifier === 'monthly-report');
 
-      // Se já passou, agenda para o próximo mês
-      if (lastDayOfMonth <= now) {
-        const nextMonth = currentMonth + 1;
-        const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
-        const nextMonthIndex = nextMonth > 11 ? 0 : nextMonth;
-        
-        lastDayOfMonth.setFullYear(nextYear);
-        lastDayOfMonth.setMonth(nextMonthIndex + 1, 0); // Último dia do próximo mês
-        lastDayOfMonth.setHours(20, 0, 0, 0);
-      }
-
-      await Notifications.scheduleNotificationAsync({
-        identifier: 'monthly-report',
-        content: {
-          title: '📊 Relatório Mensal Disponível!',
-          body: 'Seu relatório mensal de humor está pronto. Veja como foi seu mês!',
-          sound: true,
-          data: { type: 'monthly-report', screen: '/pages/Relatorios' },
-        },
-        trigger: {
-          date: lastDayOfMonth,
-          channelId: 'monthly-report',
-        },
-      });
-
-      console.log(`[Notifications] 📊 Relatório mensal agendado para ${lastDayOfMonth.toLocaleString('pt-BR')}`);
-    } catch (error) {
-      console.error('[Notifications] ❌ Erro ao agendar relatório mensal:', error);
+    if (alreadyScheduled) {
+      console.log('[Notifications] ⏳ Relatório mensal já está agendado.');
+      return;
     }
-  };
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Define o último dia do mês atual às 20h
+    let lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+    lastDayOfMonth.setHours(20, 0, 0, 0);
+
+    // Se já passou (ou está muito próximo), agenda para o próximo mês
+    if (lastDayOfMonth.getTime() - now.getTime() <= 3600000) {
+      const nextMonth = currentMonth + 1;
+      const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
+      const nextMonthIndex = nextMonth > 11 ? 0 : nextMonth;
+
+      lastDayOfMonth = new Date(nextYear, nextMonthIndex + 1, 0, 20, 0, 0, 0);
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: 'monthly-report',
+      content: {
+        title: '📊 Relatório Mensal Disponível!',
+        body: 'Seu relatório mensal de humor está pronto. Veja como foi seu mês!',
+        sound: true,
+        data: { type: 'monthly-report', screen: '/pages/Relatorios' },
+      },
+      trigger: {
+        date: lastDayOfMonth,
+        channelId: 'monthly-report',
+      },
+    });
+
+    console.log(`[Notifications] 📊 Relatório mensal agendado para ${lastDayOfMonth.toLocaleString('pt-BR')}`);
+  } catch (error) {
+    console.error('[Notifications] ❌ Erro ao agendar relatório mensal:', error);
+  }
+};
+
 
   const updateSetting = async (key: keyof NotificationSettings, value: boolean) => {
     try {
       const newSettings = { ...settings, [key]: value };
-      
+
       setSettings(newSettings);
       await AsyncStorage.setItem('notificationSettings', JSON.stringify(newSettings));
-      
+
       console.log(`[NotificationContext] 💾 ${key} = ${value}`);
 
       // Feedback visual
@@ -454,11 +478,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   return (
-    <NotificationContext.Provider value={{ 
-      settings, 
-      updateSetting, 
+    <NotificationContext.Provider value={{
+      settings,
+      updateSetting,
       loadingSettings,
-      scheduleSmartNotifications 
+      scheduleSmartNotifications
     }}>
       {children}
     </NotificationContext.Provider>

@@ -186,7 +186,7 @@ export default function Diario() {
                     {/* 📅 Calendário + Lista */}
                     <CalendarProvider date={entryDate}>
                         <View style={{ flex: 1, marginTop: '5%' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: '-2%', marginLeft: '6%', marginBottom: '3%', width: '90%', borderRadius: 20, height: '4%', padding: 5 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,  marginLeft: '6%', marginBottom: '3%', width: '90%', borderRadius: 20, height: '4%' }}>
                                 <Info size={20} color={'black'} />
                                 <Text>Utilize o calendário para filtrar suas anotações</Text>
                             </View>
@@ -198,7 +198,7 @@ export default function Diario() {
                                         const ano = date.getFullYear();
                                         return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
                                     }}
-                                    style={{ width: 350, margin: 10 }}
+                                    style={{ width: 320}}
                                     firstDay={1}
                                     onMonthChange={(month) => setVisibleDate(new Date(month.dateString))}
                                     onDayPress={(day) => {

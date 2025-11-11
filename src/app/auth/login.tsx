@@ -1,54 +1,57 @@
 import axios from 'axios';
 import Checkbox from 'expo-checkbox';
 import { useRouter } from "expo-router";
-import { LockKeyhole, User } from 'lucide-react-native';
+import { Eye, EyeOff, LockKeyhole, User } from 'lucide-react-native'; // 👈 importados ícones
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ImageBackground, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    ImageBackground,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from "react-native";
 import Logo from '../../../assets/logo.svg';
 import Mascote from '../../../assets/mascote.svg';
 import { CustomAlert, useCustomAlert } from '../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from '../../config/api';
 import { useUser } from '../../context/UserContext';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function Login() {
     const router = useRouter();
-    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
+    const { alertConfig, showError, hideAlert } = useCustomAlert();
     const [toggleCheck, setToggleCheck] = useState(false);
     const [login, setLogin] = useState('');
     const [senha, setSenha] = useState('');
+    const [showPassword, setShowPassword] = useState(false); // 👈 controle do olho
     const [loading, setLoading] = useState(false);
 
-    const { setUserId } = useUser(); // <-- importa o setter
+    const { setUserId } = useUser();
 
     async function handleLogin() {
         if (!login || !senha) {
-
-            showError(
-                'Ops, algo deu errado!',
-                'Preencha todos os campos e tente novamente'
-            );
-
+            showError('Ops, algo deu errado!', 'Preencha todos os campos e tente novamente');
             return;
         }
 
         try {
             setLoading(true);
-
             const response = await axios.post(`${API_BASE_URL}${ENDPOINTS.LOGIN}`, {
                 email: login,
                 password: senha
             });
 
-            // Certifique-se que o caminho no 'response.data' está correto
             const id = response.data?.user?.userId;
-
-            // ----- INÍCIO DO DEBUG -----
             console.log("[LOGIN] Resposta completa da API:", JSON.stringify(response.data, null, 2));
             console.log("[LOGIN] ID extraído da API:", id);
-            console.log("[LOGIN] Valor do 'Lembrar' (toggleCheck):", toggleCheck);
-            // ----- FIM DO DEBUG -----
 
             if (!id) {
                 Alert.alert("Erro de Login", "A API não retornou um ID de usuário.");
@@ -56,23 +59,12 @@ export default function Login() {
                 return;
             }
 
-            // passa o "toggleCheck" pro contexto pra decidir se grava
             await setUserId(id, toggleCheck);
-
-            // Use .replace() para "substituir" a tela de login na pilha de navegação.
-            // Isso impede que o usuário clique em "Voltar" e caia na tela de login
-            // depois de já estar logado.
             router.replace('/pages/Home');
 
         } catch (error: any) {
-
-            showError(
-                'Erro ao logar',
-                'E-mail ou senha incorretos'
-            );
-
+            showError('Erro ao logar', 'E-mail ou senha incorretos');
             console.error("[LOGIN] Erro na requisição de login:", error.response?.data || error.message);
-
         } finally {
             setLoading(false);
         }
@@ -81,12 +73,10 @@ export default function Login() {
     function handleRecover(id: string) {
         router.replace({
             pathname: "/auth/recoverPassword",
-            params: {
-                id,
-                returnTo: '/auth/login' // ou a rota que você quiser
-            }
-        })
+            params: { id, returnTo: '/auth/login' }
+        });
     }
+
     return (
         <ImageBackground
             source={require('../../../assets/images/gradiente.png')}
@@ -95,10 +85,10 @@ export default function Login() {
         >
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'android' ? -50 : 0}
             >
                 <ScrollView contentContainerStyle={styles.principal} keyboardShouldPersistTaps="handled">
-
                     <Logo />
                     <View style={{ alignItems: 'center', bottom: '57%', position: 'absolute' }}>
                         <Mascote width={350} height={160} />
@@ -117,15 +107,24 @@ export default function Login() {
                         />
                     </View>
 
+                    {/* CAMPO DE SENHA COM ÍCONE DE OLHO */}
                     <View style={styles.inputContainer}>
                         <LockKeyhole color='#3386bC' size={20} style={styles.icon} />
                         <TextInput
                             placeholder='Senha'
                             onChangeText={setSenha}
-                            secureTextEntry
+                            secureTextEntry={!showPassword}
                             style={styles.input}
                             placeholderTextColor="#3386BC"
                         />
+                        <TouchableOpacity
+                            onPress={() => setShowPassword(!showPassword)}
+                            style={styles.eyeIconContainer}
+                        >
+                            {showPassword
+                                ? <EyeOff color="#3386BC" size={20} />
+                                : <Eye color="#3386BC" size={20} />}
+                        </TouchableOpacity>
                     </View>
 
                     <View style={styles.optionsContainer}>
@@ -144,7 +143,7 @@ export default function Login() {
                     </View>
 
                     <TouchableOpacity
-                        onPress={(handleLogin)}
+                        onPress={handleLogin}
                         style={[styles.button, loading && { opacity: 0.7 }]}
                         disabled={loading}
                     >
@@ -157,6 +156,7 @@ export default function Login() {
                             <Text style={styles.signupLink}>Inscreva-se</Text>
                         </TouchableOpacity>
                     </View>
+
                     <CustomAlert
                         visible={alertConfig.visible}
                         type={alertConfig.type}
@@ -168,9 +168,9 @@ export default function Login() {
             </KeyboardAvoidingView>
         </ImageBackground>
     );
-};
+}
 
-// ... Seus estilos (styles) permanecem os mesmos ...
+// --- estilos ---
 const styles = StyleSheet.create({
     gradientBackground: {
         flex: 1,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 30,
-        marginBottom: '10%'
+        marginBottom: '10%',
     },
     titulo: {
         fontSize: 24,
@@ -204,6 +204,7 @@ const styles = StyleSheet.create({
         height: 48,
         fontSize: 16,
         paddingLeft: 45,
+        paddingRight: 45, // 👈 espaço pro ícone de olho
         color: '#000',
     },
     icon: {
@@ -211,6 +212,11 @@ const styles = StyleSheet.create({
         left: 15,
         top: 13,
         zIndex: 1,
+    },
+    eyeIconContainer: {
+        position: 'absolute',
+        right: 15,
+        top: 13,
     },
     optionsContainer: {
         width: width * 0.85,
@@ -222,12 +228,12 @@ const styles = StyleSheet.create({
     checkboxContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: '3%'
+        marginLeft: '3%',
     },
     check: {
         width: 18,
         height: 18,
-        borderColor: 'white'
+        borderColor: 'white',
     },
     checkboxText: {
         color: 'white',

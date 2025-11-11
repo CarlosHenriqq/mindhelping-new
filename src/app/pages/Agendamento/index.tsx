@@ -1,13 +1,23 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Search } from "lucide-react-native";
+import { Filter, Search } from "lucide-react-native";
 import React, { useState } from "react";
-import { FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from "../../../context/UserContext";
-export interface Professional {
 
+export interface Professional {
+  id: string;
   name: string;
   email: string;
   phone: string;
@@ -15,35 +25,30 @@ export interface Professional {
   neighborhood: string;
   city: string;
   uf: string;
+  foto?: string;
 }
 
 export default function Profissional() {
-
-
   const [nameProf, setNameProf] = useState('');
-  const [profissionais, setProfissionais] = useState([]);
-  const { userId } = useUser();
-  const [professionals, setProfessionals] = useState<Professional[]>([])
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [filteredProfessionals, setFilteredProfessionals] = useState<Professional[]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [searchCity, setSearchCity] = useState('');
   const router = useRouter();
+  const { userId } = useUser();
 
   async function buscarProfissional() {
-    const prof = nameProf
     try {
       const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.PROFESSIONALS}`, {
-        params: {
-          search: prof
-        }
-      })
-      setProfessionals(response.data.professionals)
-      console.log(professionals);
-
+        params: { search: nameProf }
+      });
+      console.log(response.data)
+      setProfessionals(response.data.professionals);
+      setFilteredProfessionals(response.data.professionals);
     } catch (e) {
-
-      console.log("Erro ao salvar pesquisaa: ", e);
+      console.log("Erro ao buscar profissionais: ", e);
     }
   }
-
-
 
   useFocusEffect(
     React.useCallback(() => {
@@ -51,40 +56,114 @@ export default function Profissional() {
     }, [])
   );
 
-  function handleAgendar(id) {
+  function handleAgendar(id: string) {
     router.push({
       pathname: "/pages/Agendamento/Agendar",
       params: {
         id,
-        returnTo: '/pages/Agendamento' // ou a rota que você quiser
+        returnTo: '/pages/Agendamento'
       }
-    })
+    });
+  }
+
+  // Cidades únicas retornadas pela API
+  const cidades = Array.from(new Set(professionals.map(p => p.city))).sort();
+
+  // Filtro por cidade
+  function filtrarPorCidade(cidade: string) {
+    if (!cidade) {
+      setFilteredProfessionals(professionals);
+      return;
+    }
+    const filtrados = professionals.filter(p =>
+      p.city.toLowerCase().includes(cidade.toLowerCase())
+    );
+    setFilteredProfessionals(filtrados);
+  }
+
+  function handleSelecionarCidade(cidade: string) {
+    filtrarPorCidade(cidade);
+    setShowModal(false);
+    setSearchCity('');
   }
 
   return (
     <LinearGradient colors={['#dbeafe', '#eff6ff']} style={{ flex: 1 }}>
       <View style={{ marginTop: '15%' }}>
-        <View style={styles.searchProf}>
-          <TextInput
-            placeholder='Buscar profissional'
-            placeholderTextColor={'#4a4a4a'}
-            style={{ borderRadius: 20, width: '90%' }}
-            value={nameProf}
-            onChangeText={setNameProf}
-          />
-          <TouchableOpacity onPress={buscarProfissional}>
-            <Search size={20} color={'#161616ff'} style={styles.icon} />
-          </TouchableOpacity>
+        {/* 🔍 Barra de busca e filtro */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchProf}>
+            <TextInput
+              placeholder='Buscar profissional'
+              placeholderTextColor={'#4a4a4a'}
+              style={{ borderRadius: 20, width: '85%' }}
+              value={nameProf}
+              onChangeText={setNameProf}
+            />
+            <TouchableOpacity onPress={buscarProfissional}>
+              <Search size={20} color={'#161616ff'} style={styles.icon} />
+            </TouchableOpacity>
+          </View>
 
+          <TouchableOpacity
+            onPress={() => setShowModal(true)}
+            style={styles.filterButton}
+          >
+            <Filter size={22} color="#161616ff" />
+          </TouchableOpacity>
         </View>
-        {professionals.length === 0 ? (
+
+        {/* 🧩 Modal de filtro por cidade */}
+        <Modal visible={showModal} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Filtrar por cidade</Text>
+              <TextInput
+                placeholder="Pesquisar cidade"
+                placeholderTextColor="#666"
+                value={searchCity}
+                onChangeText={setSearchCity}
+                style={styles.modalInput}
+              />
+
+              <FlatList
+                data={cidades.filter(c =>
+                  c.toLowerCase().includes(searchCity.toLowerCase())
+                )}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.cityItem}
+                    onPress={() => handleSelecionarCidade(item)}
+                  >
+                    <Text style={styles.cityText}>{item}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+
+              <TouchableOpacity
+                onPress={() => {
+                  setFilteredProfessionals(professionals);
+                  setShowModal(false);
+                  setSearchCity('');
+                }}
+                style={styles.btnLimpar}
+              >
+                <Text style={styles.txtLimpar}>Limpar filtro</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* 👩‍⚕️ Lista de profissionais */}
+        {filteredProfessionals.length === 0 ? (
           <View style={styles.empty}>
             <Text>Nenhum profissional encontrado.</Text>
           </View>
         ) : (
           <FlatList
-            data={professionals}
-            keyExtractor={(item) => item.name}
+            data={filteredProfessionals}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.card}>
                 <Image source={{ uri: item.foto }} style={styles.foto} />
@@ -92,10 +171,15 @@ export default function Profissional() {
                   <Text style={styles.nome}>{item.name}</Text>
                   <Text style={styles.info}>{item.email}</Text>
                   <Text style={styles.info}>{item.phone}</Text>
-                  <Text style={styles.info}>{`${item.address}, ${item.neighborhood}, ${item.city} - ${item.uf}`}</Text>
+                  <Text style={styles.info}>
+                    {`${item.address}, ${item.neighborhood}, ${item.city} - ${item.uf}`}
+                  </Text>
                 </View>
-                <TouchableOpacity onPress={() => handleAgendar(item.id)} style={{borderWidth:1, borderRadius:20, width:'30%', marginTop:20, backgroundColor:'#f0f0f0'}}>
-                  <Text style={{ fontFamily: 'Nunito', fontWeight: '700', alignSelf:'center', justifyContent:'center', fontSize:16, color:'black',}}>Agendar</Text>
+                <TouchableOpacity
+                  onPress={() => handleAgendar(item.id)}
+                  style={styles.btnAgendar}
+                >
+                  <Text style={styles.txtAgendar}>Agendar</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -108,16 +192,44 @@ export default function Profissional() {
 }
 
 const styles = StyleSheet.create({
-  empty: {
-    justifyContent: "center",
-    alignItems: "center",
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '90%',
+    alignSelf: 'center',
   },
+  searchProf: {
+    borderWidth: 1,
+    borderColor: 'black',
+    width: '88%',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    
+    backgroundColor: '#f0f0f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterButton: {
+    marginLeft: 5,
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: 'black',
+  },
+  icon: { 
+    top: 0, 
+    left:20 },
+  empty: { 
+    justifyContent: "center", 
+    alignItems: "center"
+   },
   card: {
     backgroundColor: "#f0f0f0",
     marginHorizontal: 16,
     marginVertical: 8,
     padding: 10,
-    paddingLeft:15,
+    paddingLeft: 15,
     borderRadius: 20,
     elevation: 3,
     shadowColor: "#000000",
@@ -125,31 +237,76 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowOffset: { width: 0, height: 2 },
   },
-  
-  nome: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color:'black'
-  },
-  info: {
+  nome: { 
+    fontSize: 14, 
+    fontWeight: "bold", 
+    color: 'black' },
+  info: { 
     fontSize: 12,
-    color: "#666",
+     color: "#666" },
+  btnAgendar: {
+    borderWidth: 1,
+    borderRadius: 20,
+    width: '30%',
+    marginTop: 20,
+    backgroundColor: '#f0f0f0',
   },
-  searchProf: {
-    marginTop: 0,
+  txtAgendar: {
+    fontFamily: 'Nunito',
+    fontWeight: '700',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    fontSize: 16,
+    color: 'black',
+  },
+  // Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: "#f0f0f0",
+    borderRadius: 20,
+    padding: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#000",
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+    color: "#000",
+  },
+  cityItem: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+  },
+  cityText: {
+    fontSize: 15,
+    color: "#333",
+  },
+  btnLimpar: {
+    marginTop: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 12,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: 'black',
-    width: '90%',
-    borderRadius: 20,
-    alignSelf: 'center',
-    justifyContent: "center",
-    paddingInline: 15,
-    padding: 10,
-    backgroundColor: '#f0f0f0',
-    flexDirection: 'row',
-    marginBottom: '5%'
   },
-  icon: {
-    top: '25%'
-  }
+  txtLimpar: {
+    textAlign: 'center',
+    fontWeight: '600',
+    color: '#000',
+  },
 });

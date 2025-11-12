@@ -1,7 +1,7 @@
 import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pencil, Trash2 } from "lucide-react-native";
+import { Info, Pencil, Trash2 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -265,6 +265,10 @@ const Metas = () => {
                     <View style={styles.textMetas}>
                         <Text style={styles.text}>Minhas Metas</Text>
                     </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,  justifyContent:'center', marginTop:8, width: '90%', borderRadius: 20, }}>
+                                <Info size={20} color={'black'} />
+                                <Text>Clique na meta para executá-la</Text>
+                            </View>
                     <View style={styles.cardsMeta}>{renderContent()}</View>
                 </ScrollView>
 

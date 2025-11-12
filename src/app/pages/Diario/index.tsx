@@ -1,12 +1,21 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-// Importado o Trash2
 import { BrushCleaningIcon, Info, Pencil, Search, Trash2 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
-import { Alert, FlatList, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from "react-native";
+import {
+    FlatList,
+    Keyboard,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
+} from "react-native";
 import * as Animatable from "react-native-animatable";
 import { Calendar, CalendarProvider, LocaleConfig } from 'react-native-calendars';
+import { CustomAlert, useCustomAlert } from "../../../components/CustomAlert"; // ✅ Import do alerta
 import { API_BASE_URL, ENDPOINTS } from "../../../config/api";
 import { useUser } from "../../../context/UserContext";
 
@@ -19,6 +28,8 @@ export default function Diario() {
     const [showAddHint, setShowAddHint] = useState(false);
     const [showCleanHint, setShowCleanHint] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    const { alertConfig, showSuccess, showError, showInfo, hideAlert, showConfirm } = useCustomAlert(); // ✅ Hook do alerta
 
     // ativa hints ao focar na tela
     useFocusEffect(
@@ -65,19 +76,14 @@ export default function Diario() {
 
             const response = await axios.get(
                 `${API_BASE_URL}${ENDPOINTS.DAILY(userId)}`,
-                {
-                    params: {
-                        startDay,
-                        endDay
-                    }
-                }
+                { params: { startDay, endDay } }
             );
 
             console.log("Anotações carregadas:", response.data);
             setAnotacoes(response.data.dailys || []);
         } catch (error) {
             console.error("Erro ao carregar anotações:", error.response?.data || error.message);
-            Alert.alert('Erro', 'Não foi possível carregar as anotações.');
+            showError('Erro', 'Não foi possível carregar as anotações.');
             setAnotacoes([]);
         } finally {
             setLoading(false);
@@ -91,47 +97,46 @@ export default function Diario() {
     );
 
     // Função para deletar
-    async function handleDelete(dailyId) {
-        Alert.alert(
-            "Confirmar Exclusão",
-            "Tem certeza de que deseja excluir esta anotação?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Excluir",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await axios.delete(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${dailyId}`);
-                            setAnotacoes(prevAnotacoes => 
-                                prevAnotacoes.filter(anotacao => anotacao.id !== dailyId)
-                            );
-                            Alert.alert("Sucesso", "Anotação excluída.");
-                        } catch (error) {
-                            console.error("Erro ao excluir anotação:", error.response?.data || error.message);
-                            Alert.alert('Erro', 'Não foi possível excluir a anotação.');
-                        }
-                    }
+    function handleDelete(dailyId: number) {
+        showConfirm(
+            'Confirmar exclusão',
+            'Tem certeza de que deseja excluir esta anotação?',
+            async () => {
+                try {
+                    await axios.delete(`${API_BASE_URL}${ENDPOINTS.DAILY(userId)}/${dailyId}`);
+                    setAnotacoes(prev => prev.filter(a => a.id !== dailyId));
+                    hideAlert();
+                    showSuccess('Sucesso', 'Anotação excluída com sucesso!');
+                } catch (error) {
+                    hideAlert();
+                    showError('Erro', 'Não foi possível excluir a anotação.');
                 }
-            ]
+            },
+            () => {
+                hideAlert();
+                showInfo('Cancelado', 'A exclusão foi cancelada.');
+            },
+            'warning', // tipo de alerta
+            'Excluir', // texto confirmar
+            'Cancelar' // texto cancelar
         );
     }
 
-    // ##### renderItem CORRIGIDO #####
+
+    // Renderização de cada item
     const renderItem = ({ item }) => {
-        const dataFormatada = item.createdAt ? new Date(item.createdAt).toLocaleDateString('pt-BR') : '';
+        const dataFormatada = item.createdAt
+            ? new Date(item.createdAt).toLocaleDateString('pt-BR')
+            : '';
 
         return (
-            // O card agora é uma View para conter os dois botões
             <View style={styles.anotacaoCard}>
-                
-                {/* TouchableOpacity para o conteúdo (navegação) */}
                 <TouchableOpacity
-                    style={styles.anotacaoConteudo} // Ocupa a maior parte
-                    onPress={() => // Ação de navegar
+                    style={styles.anotacaoConteudo}
+                    onPress={() =>
                         router.push({
                             pathname: "/pages/Diario/Anotacoes",
-                            params: { dailyId: item.id } // Envia o ID
+                            params: { dailyId: item.id }
                         })
                     }
                 >
@@ -141,11 +146,7 @@ export default function Diario() {
                     </Text>
                 </TouchableOpacity>
 
-                {/* TouchableOpacity para o botão de excluir */}
-                <TouchableOpacity 
-                    style={styles.deleteButton} 
-                    onPress={() => handleDelete(item.id)} // Chama a função de excluir
-                >
+                <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
                     <Trash2 size={24} color="#ef4444" />
                 </TouchableOpacity>
             </View>
@@ -167,10 +168,8 @@ export default function Diario() {
     return (
         <View style={styles.container}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                <LinearGradient
-                    colors={['#eff6ff', '#dbeafe']}
-                    style={styles.background}
-                >
+                <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+
                     {/* 🔍 Caixa de pesquisa */}
                     <View style={styles.searchContainer}>
                         <TextInput
@@ -186,10 +185,20 @@ export default function Diario() {
                     {/* 📅 Calendário + Lista */}
                     <CalendarProvider date={entryDate}>
                         <View style={{ flex: 1, marginTop: '5%' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5,  marginLeft: '6%', marginBottom: '3%', width: '90%', borderRadius: 20, height: '4%' }}>
+                            <View style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 5,
+                                marginLeft: '6%',
+                                marginBottom: '3%',
+                                width: '90%',
+                                borderRadius: 20,
+                                height: '4%'
+                            }}>
                                 <Info size={20} color={'black'} />
                                 <Text>Utilize o calendário para filtrar suas anotações</Text>
                             </View>
+
                             <View style={styles.calendarWrapper}>
                                 <Calendar
                                     current={visibleDate.toISOString().split('T')[0]}
@@ -198,12 +207,10 @@ export default function Diario() {
                                         const ano = date.getFullYear();
                                         return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
                                     }}
-                                    style={{ width: 320}}
+                                    style={{ width: 320 }}
                                     firstDay={1}
                                     onMonthChange={(month) => setVisibleDate(new Date(month.dateString))}
-                                    onDayPress={(day) => {
-                                        setSelectedDate(day.dateString);
-                                    }}
+                                    onDayPress={(day) => setSelectedDate(day.dateString)}
                                     markedDates={
                                         selectedDate ? {
                                             [selectedDate]: {
@@ -235,7 +242,7 @@ export default function Diario() {
                                     <FlatList
                                         data={anotacoesFiltradas}
                                         keyExtractor={(item) => item.id.toString()}
-                                        renderItem={renderItem} // <- Usa o renderItem corrigido
+                                        renderItem={renderItem}
                                         contentContainerStyle={{ paddingBottom: 80 }}
                                     />
                                 )}
@@ -243,18 +250,14 @@ export default function Diario() {
                         </View>
                     </CalendarProvider>
 
-                    {/* ➕ Botão Nova Nota (Leva para NovaAnotacao) */}
+                    {/* ➕ Botão Nova Nota */}
                     <TouchableOpacity
                         style={styles.newMetaContainer}
                         onPress={() => router.push("/pages/Diario/Anotacoes")}
                     >
                         <Pencil color={'#000000'} size={24} />
                         {showAddHint && (
-                            <Animatable.View
-                                animation="fadeInLeft"
-                                duration={1500}
-                                style={styles.hintBox}
-                            >
+                            <Animatable.View animation="fadeInLeft" duration={1500} style={styles.hintBox}>
                                 <Text style={styles.hintText}>Adicionar nota</Text>
                             </Animatable.View>
                         )}
@@ -262,22 +265,29 @@ export default function Diario() {
 
                     {/* 🧹 Botão Limpar Filtros */}
                     {(searchText || selectedDate) && (
-                        <TouchableOpacity
-                            style={styles.refreshContainer}
-                            onPress={cleanFilter}
-                        >
+                        <TouchableOpacity style={styles.refreshContainer} onPress={cleanFilter}>
                             <BrushCleaningIcon color={'#000000'} size={24} />
                             {showCleanHint && (
-                                <Animatable.View
-                                    animation="fadeInLeft"
-                                    duration={1500}
-                                    style={styles.hintBox}
-                                >
+                                <Animatable.View animation="fadeInLeft" duration={1500} style={styles.hintBox}>
                                     <Text style={styles.hintText}>Limpar filtros</Text>
                                 </Animatable.View>
                             )}
                         </TouchableOpacity>
                     )}
+
+                    {/* ⚠️ Alerta personalizado */}
+                    <CustomAlert
+                        visible={alertConfig.visible}
+                        type={alertConfig.type}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={hideAlert}
+                        showConfirm={alertConfig.showConfirm}
+                        confirmText={alertConfig.confirmText}
+                        cancelText={alertConfig.cancelText}
+                        onConfirm={alertConfig.onConfirm}
+                        onCancel={alertConfig.onCancel}
+                    />
 
                 </LinearGradient>
             </TouchableWithoutFeedback>
@@ -285,15 +295,9 @@ export default function Diario() {
     );
 }
 
-// ##### Estilos CORRIGIDOS #####
 const styles = StyleSheet.create({
-    background: {
-        flex: 1
-    },
-    container: {
-        flex: 1,
-        backgroundColor: "#f5f5f5"
-    },
+    background: { flex: 1 },
+    container: { flex: 1, backgroundColor: "#f5f5f5" },
     searchContainer: {
         width: '90%',
         alignSelf: 'center',
@@ -346,7 +350,6 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         marginTop: 10
     },
-    // Estilo do card (agora uma View)
     anotacaoCard: {
         padding: 15,
         borderRadius: 20,
@@ -354,14 +357,13 @@ const styles = StyleSheet.create({
         borderColor: '#eee',
         backgroundColor: 'white',
         marginBottom: 10,
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center'
     },
-    // Estilo do conteúdo (agora um TouchableOpacity)
     anotacaoConteudo: {
-        flex: 1, 
-        marginRight: 10 
+        flex: 1,
+        marginRight: 10
     },
     anotacaoData: {
         fontSize: 12,
@@ -373,9 +375,8 @@ const styles = StyleSheet.create({
         color: '#161616ff',
         fontSize: 16
     },
-    // Estilo para o botão de deletar (continua TouchableOpacity)
     deleteButton: {
-        padding: 10, 
+        padding: 10,
     },
     newMetaContainer: {
         position: 'absolute',

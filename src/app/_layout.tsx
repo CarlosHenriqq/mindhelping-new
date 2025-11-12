@@ -17,19 +17,10 @@ export default function Layout() {
     const setupNavigationBar = async () => {
       if (Platform.OS === 'android') {
         try {
-          // Para Android 10, use 'leanback' ao invés de 'hidden'
-          // Isso faz a barra aparecer só quando deslizar de baixo pra cima
-          await NavigationBar.setVisibilityAsync('hidden');
-          
-          // Define cor de fundo combinando com seu gradiente
-          await NavigationBar.setBackgroundColorAsync('#dbeafe'); // Cor final do gradiente
-          
-          // Botões claros (ícones brancos)
+          await NavigationBar.setVisibilityAsync('visible');
+          await NavigationBar.setBackgroundColorAsync('#dbeafe');
           await NavigationBar.setButtonStyleAsync('light');
-          
-          // Comportamento: aparece ao deslizar
-          await NavigationBar.setBehaviorAsync('overlay-swipe');
-          
+          await NavigationBar.setBehaviorAsync('inset-swipe');
         } catch (error) {
           console.log('⚠️ Erro ao configurar NavigationBar:', error);
         }
@@ -38,6 +29,7 @@ export default function Layout() {
 
     setupNavigationBar();
   }, []);
+
 
   if (!fontsLoaded) {
     return (
@@ -52,7 +44,7 @@ export default function Layout() {
       <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
 
       <LinearGradient
-        colors={['#eff6ff', '#dbeafe']}
+        colors={['#dbeafe', '#dbeafe']}
         style={{
           height: StatusBar.currentHeight ?? 0,
           width: '100%',

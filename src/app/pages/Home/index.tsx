@@ -67,7 +67,7 @@ export default function Home() {
     const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [userName, setUserName] = useState('');
     const { userId, loadingUser } = useUser();
-    const [isCanceled, setIsCanceled] = useState(false);
+ 
     const [userPhoto, setUserPhoto] = useState(null);
     const [schedulingId, setSchedulingId] = useState('');
     const [modalSelected, setModalSelect] = useState(false);
@@ -125,8 +125,8 @@ export default function Home() {
                     console.log("💾 Dados do cache:", cachedData);
                 }
 
-                
-                
+
+
 
                 return {
                     schedulingId: details.id,
@@ -138,6 +138,7 @@ export default function Home() {
                     phone: details.phoneProfessional,
                     email: details.emailProfessional,
                     address: `${details.address.street}, ${details.address.city} - ${details.address.uf}`,
+                    isCanceled: details.isCanceled
                 };
             }
 
@@ -239,7 +240,7 @@ export default function Home() {
         }
 
         try {
-            const url = `${API_BASE_URL}${ENDPOINTS.CANCEL_SCHEDULING(nextAppointment.hourlyId,nextAppointment.schedulingId)}`;
+            const url = `${API_BASE_URL}${ENDPOINTS.CANCEL_SCHEDULING(nextAppointment.hourlyId, nextAppointment.schedulingId)}`;
 
             console.log("🗑️ Cancelando agendamento com hourlyId:", nextAppointment.hourlyId);
             console.log("📍 URL:", url);
@@ -251,7 +252,7 @@ export default function Home() {
                 }
             });
 
-            setIsCanceled(true);
+            
 
             // 🔥 Limpar do cache usando a chave composta
             const dateString = new Date(nextAppointment.date).toISOString().split('T')[0];
@@ -262,9 +263,13 @@ export default function Home() {
 
             showSuccess('Cancelado!', 'Seu agendamento foi cancelado com sucesso.');
 
-            // Atualizar
+            // Atualiza diretamente o objeto atual, marcando como cancelado
+            setNextAppointment(prev => prev ? { ...prev, isCanceled: true } : prev);
+
+            // E ainda atualiza da API (para garantir sincronia)
             const appointmentData = await fetchNextAppointment();
             setNextAppointment(appointmentData);
+
 
         } catch (error: any) {
             console.error("❌ Erro ao cancelar:", error.response?.data || error.message);
@@ -373,15 +378,33 @@ export default function Home() {
 
                                         </View>
                                         <View>
-                                            <TouchableOpacity style={{ borderWidth: 1, alignSelf:'center',borderColor: 'red', borderRadius: 20, width: '65%', marginTop: 10 }} onPress={cancelAgendamento} disabled={isCanceled}>
+                                            <TouchableOpacity
+                                                style={{
+                                                    borderWidth: 1,
+                                                    alignSelf: 'center',
+                                                    borderColor: nextAppointment.isCanceled ? 'gray' : 'red',
+                                                    borderRadius: 20,
+                                                    width: '65%',
+                                                    marginTop: 10,
+                                                    opacity: nextAppointment.isCanceled ? 0.6 : 1
+                                                }}
+                                                onPress={cancelAgendamento}
+                                                disabled={nextAppointment.isCanceled}
+                                            >
                                                 <Text style={{
-                                                    color: 'red', fontWeight: 'bold', padding: 5, textAlign: 'center',
+                                                    color: nextAppointment.isCanceled ? 'gray' : 'red',
+                                                    fontWeight: 'bold',
+                                                    padding: 5,
+                                                    textAlign: 'center',
                                                     shadowRadius: 20,
                                                     shadowOpacity: 0.5,
                                                     shadowOffset: { width: 0, height: 2 },
                                                     elevation: 5,
-                                                }}>{isCanceled ? 'CANCELADO' : 'Cancelar agendamento'}</Text>
+                                                }}>
+                                                    {nextAppointment.isCanceled ? 'CANCELADO' : 'Cancelar agendamento'}
+                                                </Text>
                                             </TouchableOpacity>
+
                                         </View>
                                     </>
                                 ) : (
@@ -489,14 +512,14 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         borderRadius: 25,
-        
-     
+
+
     },
     fotoPlaceholder: {
         width: 50,
         height: 50,
         borderRadius: 25,
-       
+
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',

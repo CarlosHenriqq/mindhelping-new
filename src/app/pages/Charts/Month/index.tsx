@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { Alert, Keyboard, KeyboardAvoidingView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import FeelingsChart from '../../../../components/feelingCharts';
@@ -14,6 +16,7 @@ export default function ChartMonth() {
     const [isEnabled, setIsEnabled] = useState(true);
     const { userId } = useUser();
     const toggleSwitch = () => setIsEnabled(previousState => !previousState);
+    const { id, returnTo } = useLocalSearchParams();
 
     const feelingColors = {
         FELIZ: '#edd892',
@@ -88,17 +91,29 @@ export default function ChartMonth() {
 
             
 
-        } catch (error) {
+        } catch (error:any) {
             console.error("Erro ao buscar sentimentos:", error.response?.data || error.message);
             Alert.alert("Erro", "Não foi possível buscar os sentimentos. Tente novamente.");
         }
     };
+const handleGoBack = () => {
 
+    if (returnTo) {
+      router.replace(returnTo as any);
+    } else {
+      router.replace('/pages/Home');
+    }
+  };
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior="padding">
             <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+                <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
+                                <ChevronLeft color="#333" size={24} />
+                                <Text style={styles.textoVoltar}>Voltar</Text>
+                              </TouchableOpacity>
                 <View style={styles.header}>
+                    
                     <Text style={styles.title}>Relatório Mensal</Text>
                     <View style={styles.filterContainer}>
                         <Text style={styles.filter}>Informe um período</Text>
@@ -137,7 +152,7 @@ export default function ChartMonth() {
                     </Text>
                     <View style={styles.chartContent}>
                         {chartData.length > 0 && chartData.some(d => d.value > 0) ? (
-                            <View style={{ height: 300, marginTop: '15%', justifyContent: 'center' }}>
+                            <View style={{ height: 300, marginTop: 30, justifyContent: 'center' }}>
                                 <FeelingsChart data={chartData} maxValue={maxValue} layout='vertical' />
                             </View>
 
@@ -163,6 +178,17 @@ const styles = StyleSheet.create({
     background: {
         flex: 1
     },
+    botaoVoltar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 50,
+    marginLeft: 10
+  },
+  textoVoltar: {
+    fontSize: 16,
+    color: '#333',
+
+  },
     header: {
         marginTop: '25%',
         paddingHorizontal: 20,

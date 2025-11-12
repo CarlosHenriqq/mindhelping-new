@@ -5,7 +5,6 @@ import { ChevronLeft } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Keyboard,
     KeyboardAvoidingView,
     Platform,
@@ -17,6 +16,7 @@ import {
     TouchableWithoutFeedback,
     View
 } from "react-native";
+import { CustomAlert, useCustomAlert } from "../../../../components/CustomAlert"; // ✅ importação do alerta
 import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
 import { useUser } from "../../../../context/UserContext";
 
@@ -28,6 +28,9 @@ export default function Anotacoes() {
     const [anotacaoId, setAnotacaoId] = useState(null);
     const [loading, setLoading] = useState(false);
     const [displayDate, setDisplayDate] = useState(new Date());
+
+    // ✅ Hook do alerta customizado
+    const { alertConfig, showSuccess, showError, hideAlert } = useCustomAlert();
 
     const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio',
         'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -56,38 +59,31 @@ export default function Anotacoes() {
                 console.log("✅ Anotação carregada com sucesso");
             } else {
                 console.error("❌ Formato de resposta inesperado:", response.data);
-                Alert.alert("Erro", "Não foi possível ler os dados da anotação.");
+                showError("Erro", "Não foi possível ler os dados da anotação.");
             }
 
         } catch (error) {
             console.error("❌ Erro ao carregar anotação:", error.response?.data || error.message);
-            Alert.alert("Erro", "Não foi possível carregar a anotação.");
+            showError("Erro", "Não foi possível carregar a anotação.");
             router.back();
         } finally {
             setLoading(false);
         }
     };
 
-    // ===== MUDANÇA CRÍTICA: useFocusEffect em vez de useEffect =====
     useFocusEffect(
         useCallback(() => {
             console.log("\n🔍 [FOCUS] Tela focada");
             console.log("🔍 [FOCUS] dailyId recebido:", dailyId);
-            console.log("🔍 [FOCUS] Tipo:", typeof dailyId);
 
-            // Limpa os estados ANTES de verificar
             setLoading(true);
 
-            // Trata dailyId como array (bug comum do Expo Router)
             const idToUse = Array.isArray(dailyId) ? dailyId[0] : dailyId;
-            console.log("🔍 [FOCUS] ID processado:", idToUse);
-
-            // Verifica se é um ID válido (UUID tem 36 caracteres com hífens)
-            const isValidId = idToUse && 
-                             idToUse !== 'undefined' && 
-                             idToUse !== 'null' &&
-                             typeof idToUse === 'string' &&
-                             idToUse.length > 10;
+            const isValidId = idToUse &&
+                idToUse !== 'undefined' &&
+                idToUse !== 'null' &&
+                typeof idToUse === 'string' &&
+                idToUse.length > 10;
 
             if (isValidId) {
                 console.log("📝 Modo EDIÇÃO/VISUALIZAÇÃO");
@@ -95,43 +91,38 @@ export default function Anotacoes() {
                 carregarAnotacao(idToUse);
             } else {
                 console.log("✨ Modo NOVA ANOTAÇÃO - LIMPANDO TUDO");
-                // Limpa completamente o estado
                 setAnotacaoTexto('');
                 setAnotacaoId(null);
                 setDisplayDate(new Date());
                 setLoading(false);
             }
 
-            // Cleanup function (executa quando a tela perde o foco)
-            return () => {
-                console.log("👋 [FOCUS] Tela desfocada - limpando estados");
-            };
+            return () => console.log("👋 [FOCUS] Tela desfocada - limpando estados");
         }, [dailyId, userId])
     );
 
     const handleSalvar = async () => {
         if (!anotacaoTexto.trim()) {
-            Alert.alert('Anotação vazia', 'Por favor, digite algo para salvar.');
+            showError('Anotação vazia', 'Por favor, digite algo para salvar.');
             return;
         }
 
         try {
             console.log("💾 Salvando nova anotação...");
-            
             const payload = { content: anotacaoTexto };
 
             const response = await axios.post(
                 `${API_BASE_URL}${ENDPOINTS.DAILY(userId)}`,
                 payload
             );
-            
+
             console.log("✅ Anotação criada:", response.data);
-            Alert.alert('Sucesso', 'Anotação salva com sucesso!');
-            router.back();
+            showSuccess('Sucesso', 'Anotação salva com sucesso!');
+            setTimeout(() => router.back(), 1200);
 
         } catch (e) {
             console.error("❌ Erro ao salvar:", e.response?.data || e.message);
-            Alert.alert('Erro', `Não foi possível salvar a anotação: ${e.response?.data?.message || e.message}`);
+            showError('Erro', `Não foi possível salvar a anotação.`);
         }
     };
 
@@ -148,8 +139,8 @@ export default function Anotacoes() {
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                     <View style={styles.mainContainer}>
                         <View style={styles.header}>
-                            <TouchableOpacity 
-                                onPress={() => router.back()} 
+                            <TouchableOpacity
+                                onPress={() => router.back()}
                                 style={styles.backButton}
                             >
                                 <ChevronLeft color="#333" size={24} />
@@ -192,6 +183,15 @@ export default function Anotacoes() {
                                 <Text style={styles.saveButtonText}>Salvar</Text>
                             </TouchableOpacity>
                         )}
+
+                        {/* ✅ Alerta customizado */}
+                        <CustomAlert
+                            visible={alertConfig.visible}
+                            type={alertConfig.type}
+                            title={alertConfig.title}
+                            message={alertConfig.message}
+                            onClose={hideAlert}
+                        />
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>

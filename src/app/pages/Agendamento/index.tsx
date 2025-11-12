@@ -109,7 +109,7 @@ export default function Profissional() {
             onPress={() => setShowModal(true)}
             style={styles.filterButton}
           >
-            <Filter size={22} color="#161616ff" />
+            <Filter size={20} color="#161616ff" />
           </TouchableOpacity>
         </View>
 
@@ -211,11 +211,10 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     marginLeft: 5,
-    backgroundColor: '#f0f0f0',
+   
     padding: 10,
     borderRadius: 50,
-    borderWidth: 1,
-    borderColor: 'black',
+ 
   },
   icon: { 
     top: 0, 
@@ -262,7 +261,7 @@ const styles = StyleSheet.create({
   // Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    
     justifyContent: "center",
     alignItems: "center",
   },
@@ -270,6 +269,8 @@ const styles = StyleSheet.create({
     width: '85%',
     backgroundColor: "#f0f0f0",
     borderRadius: 20,
+    borderWidth:1,
+    borderColor:'#000',
     padding: 20,
     elevation: 10,
   },
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
     color: "#000",
   },
   modalInput: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#ccc",
     borderRadius: 12,
     padding: 10,
@@ -301,8 +302,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     borderRadius: 12,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'black',
+    borderWidth: 1.5,
+    borderColor: '#ccc',
   },
   txtLimpar: {
     textAlign: 'center',

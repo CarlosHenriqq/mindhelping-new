@@ -1,11 +1,11 @@
 import { AlertCircle, CheckCircle, Info, XCircle } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 
 // Tipos de alerta
@@ -18,6 +18,11 @@ interface CustomAlertProps {
   message: string;
   onClose: () => void;
   confirmText?: string;
+  // 🆕 Campos opcionais para confirmação
+  showConfirm?: boolean;
+  cancelText?: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 export function CustomAlert({
@@ -27,6 +32,10 @@ export function CustomAlert({
   message,
   onClose,
   confirmText = 'OK',
+  showConfirm = false,
+  cancelText = 'Cancelar',
+  onConfirm,
+  onCancel
 }: CustomAlertProps) {
   const getIcon = () => {
     switch (type) {
@@ -37,6 +46,7 @@ export function CustomAlert({
       case 'warning':
         return <AlertCircle color="#f39c12" size={48} />;
       case 'info':
+      default:
         return <Info color="#3498db" size={48} />;
     }
   };
@@ -50,6 +60,7 @@ export function CustomAlert({
       case 'warning':
         return '#f39c12';
       case 'info':
+      default:
         return '#3498db';
     }
   };
@@ -57,7 +68,7 @@ export function CustomAlert({
   return (
     <Modal
       animationType="fade"
-      transparent={true}
+      transparent
       visible={visible}
       onRequestClose={onClose}
     >
@@ -68,12 +79,30 @@ export function CustomAlert({
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalMessage}>{message}</Text>
 
-          <TouchableOpacity
-            style={[styles.confirmBtn, { backgroundColor: getColor() }]}
-            onPress={onClose}
-          >
-            <Text style={styles.confirmBtnText}>{confirmText}</Text>
-          </TouchableOpacity>
+          {showConfirm ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.cancelBtn]}
+                onPress={onCancel}
+              >
+                <Text style={styles.cancelBtnText}>{cancelText}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, { backgroundColor: getColor() }]}
+                onPress={onConfirm}
+              >
+                <Text style={styles.confirmBtnText}>{confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.confirmBtn, { backgroundColor: getColor() }]}
+              onPress={onClose}
+            >
+              <Text style={styles.confirmBtnText}>{confirmText}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </Modal>
@@ -87,29 +116,59 @@ export function useCustomAlert() {
     type: 'info' as AlertType,
     title: '',
     message: '',
+    showConfirm: false,
+    confirmText: 'OK',
+    cancelText: 'Cancelar',
+    onConfirm: undefined as (() => void) | undefined,
+    onCancel: undefined as (() => void) | undefined,
   });
 
-  const showAlert = (
-    type: AlertType,
+  const showAlert = (type: AlertType, title: string, message: string) => {
+    setAlertConfig({
+      visible: true,
+      type,
+      title,
+      message,
+      showConfirm: false,
+      confirmText: 'OK',
+      cancelText: 'Cancelar',
+      onConfirm: undefined,
+      onCancel: undefined,
+    });
+  };
+
+  // 🆕 Novo método de confirmação
+  const showConfirm = (
     title: string,
-    message: string
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void,
+    type: AlertType = 'warning',
+    confirmText = 'Confirmar',
+    cancelText = 'Cancelar'
   ) => {
     setAlertConfig({
       visible: true,
       type,
       title,
       message,
+      showConfirm: true,
+      confirmText,
+      cancelText,
+      onConfirm,
+      onCancel,
     });
   };
 
   const hideAlert = () => {
-    setAlertConfig((prev) => ({ ...prev, visible: false }));
+    setAlertConfig(prev => ({ ...prev, visible: false }));
   };
 
   return {
     alertConfig,
     showAlert,
     hideAlert,
+    showConfirm, // 🆕 exportado
     // Atalhos
     showSuccess: (title: string, message: string) =>
       showAlert('success', title, message),
@@ -121,6 +180,7 @@ export function useCustomAlert() {
       showAlert('info', title, message),
   };
 }
+
 
 const styles = StyleSheet.create({
   modalBackground: {
@@ -169,52 +229,25 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 16,
   },
+  // 🆕 estilo botões duplos
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    gap: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelBtn: {
+    backgroundColor: '#e6e6e6',
+  },
+  cancelBtnText: {
+    color: '#333',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });
-
-// Exemplo de uso
-export default function ExampleScreen() {
-  const { alertConfig, showSuccess, showError, showWarning, hideAlert } =
-    useCustomAlert();
-
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', padding: 20, gap: 15 }}>
-      <TouchableOpacity
-        style={[styles.confirmBtn, { backgroundColor: '#27ae60' }]}
-        onPress={() =>
-          showSuccess('Sucesso!', 'Agendamento realizado com sucesso!')
-        }
-      >
-        <Text style={styles.confirmBtnText}>Mostrar Sucesso</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.confirmBtn, { backgroundColor: '#e74c3c' }]}
-        onPress={() =>
-          showError(
-            'Erro',
-            'Não é possível agendar uma consulta em horário retroativo.'
-          )
-        }
-      >
-        <Text style={styles.confirmBtnText}>Mostrar Erro</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.confirmBtn, { backgroundColor: '#f39c12' }]}
-        onPress={() =>
-          showWarning('Atenção', 'Verifique os dados antes de continuar.')
-        }
-      >
-        <Text style={styles.confirmBtnText}>Mostrar Aviso</Text>
-      </TouchableOpacity>
-
-      <CustomAlert
-        visible={alertConfig.visible}
-        type={alertConfig.type}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        onClose={hideAlert}
-      />
-    </View>
-  );
-}

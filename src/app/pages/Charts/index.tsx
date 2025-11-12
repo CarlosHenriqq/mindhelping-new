@@ -102,7 +102,7 @@ const Analystic = () => {
           <TouchableOpacity onPress={() => router.replace('/pages/Home')} style={styles.botaoVoltar}>
             <ChevronLeft color="black" />
           </TouchableOpacity>
-          <Text>Voltar</Text>
+          <Text style={{fontSize:16}}>Voltar</Text>
         </View>
 
         <View style={styles.calendarContainer}>
@@ -174,7 +174,7 @@ const Analystic = () => {
         </Modal>
 
         <TouchableOpacity style={styles.buttonMonthlyReport} onPress={() => router.replace('/pages/Charts/Month')}>
-          <Text style={{ fontFamily: "Nunito", fontSize: 18 }}>Acessar relatório mensal</Text>
+          <Text style={{ fontSize: 12, fontWeight:'semibold' }}>ACESSAR RELATÓRIO MENSAL</Text>
         </TouchableOpacity>
 
         <View style={{ height: 20 }} />
@@ -332,6 +332,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 2
+    elevation: 10
   },
 });

@@ -128,7 +128,7 @@ export default function Anotacoes() {
 
     return (
         <LinearGradient
-            colors={['#eff6ff', '#dbeafe']}
+            colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
             style={styles.background}
         >
             <KeyboardAvoidingView
@@ -158,7 +158,7 @@ export default function Anotacoes() {
 
                         <View style={styles.inputContainer}>
                             {loading ? (
-                                <ActivityIndicator size="large" color="#2980B9" />
+                                <ActivityIndicator size="large" color="#0284c7" />
                             ) : (
                                 <TextInput
                                     placeholder="Comece a escrever aqui..."

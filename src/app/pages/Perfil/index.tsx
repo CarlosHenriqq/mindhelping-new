@@ -112,7 +112,7 @@ export default function Perfil() {
 
 
     return (
-        <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+        <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.background}>
             <ScrollView contentContainerStyle={styles.scrollContainer}>
                 {/* CARD PRINCIPAL DO PERFIL */}
                 <View style={styles.profileCard}>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     nome: { fontSize: 22, color: "#111827", fontFamily: "Nunito", fontWeight: "700", marginBottom: 4, textAlign:'center' },
     locationContainer: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 15 },
     locationText: { fontSize: 15, color: "#4b5563", fontFamily: "Nunito" },
-    editButton: { borderRadius: 20, backgroundColor: "#2980B9", paddingVertical: 10, paddingHorizontal: 25, marginBottom: 20 },
+    editButton: { borderRadius: 20, backgroundColor: "#0284c7", paddingVertical: 10, paddingHorizontal: 25, marginBottom: 20 },
     editButtonText: { textAlign: "center", color: "white", fontSize: 14, fontWeight: "bold" },
     cardsContainer: { flexDirection: "row", justifyContent: "space-around", width: '100%', gap: 15 },
     card: {

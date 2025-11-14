@@ -19,7 +19,7 @@ export default function Privacidade() {
 
     return (
         <LinearGradient
-            colors={['#eff6ff', '#dbeafe']}
+            colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
             style={styles.background}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>

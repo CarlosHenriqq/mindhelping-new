@@ -1,8 +1,8 @@
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import axios from 'axios';
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { Calendar as CalendarIcon, ChevronLeft, Eye, TrendingUp, X } from "lucide-react-native";
 import React, { useState } from "react";
 import { Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -10,7 +10,6 @@ import FeelingsChart from "../../../components/feelingCharts";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from '../../../context/UserContext';
 
-// ✅ CONFIGURE O LOCALE AQUI, FORA DO COMPONENTE
 LocaleConfig.locales['pt-br'] = {
   monthNames: [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -24,7 +23,6 @@ LocaleConfig.locales['pt-br'] = {
 LocaleConfig.defaultLocale = 'pt-br';
 
 const Analystic = () => {
-  const navigation = useNavigation();
   const { userId } = useUser();
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [feelingDataForChart, setFeelingDataForChart] = useState([]);
@@ -90,21 +88,42 @@ const Analystic = () => {
 
   useFocusEffect(
     React.useCallback(() => {
-      StatusBar.setBackgroundColor('#A3D8F4');
+      StatusBar.setBackgroundColor('#f0f9ff');
       fetchFeelings(selectedDay);
     }, [selectedDay])
   );
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: 'long', 
+      year: 'numeric' 
+    });
+  };
+
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} bounces={false} overScrollMode="never">
-      <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
-        <View style={styles.Seta}>
+      <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.background}>
+        
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity onPress={() => router.replace('/pages/Home')} style={styles.botaoVoltar}>
-            <ChevronLeft color="black" />
+            <ChevronLeft color="#0f172a" size={24} strokeWidth={2.5} />
           </TouchableOpacity>
-          <Text style={{fontSize:16}}>Voltar</Text>
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle}>Análise Diária</Text>
+            <Text style={styles.headerSubtitle}>Seus sentimentos</Text>
+          </View>
+          <View style={{ width: 40 }} />
         </View>
 
+        {/* Data selecionada */}
+        <View style={styles.selectedDateCard}>
+          <CalendarIcon size={20} color="#0284c7" />
+          <Text style={styles.selectedDateText}>{formatDate(selectedDay)}</Text>
+        </View>
+
+        {/* Calendário */}
         <View style={styles.calendarContainer}>
           <Calendar
             current={visibleDate.toISOString().split('T')[0]}
@@ -113,29 +132,68 @@ const Analystic = () => {
               const ano = date.getFullYear();
               return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
             }}
-            style={{ width: 320, backgroundColor: 'transparent'}}
-            firstDay={0} // ✅ Adicione isso - 0 = Domingo (padrão brasileiro)
+            firstDay={0}
             onDayPress={(day) => {
               const pressedDate = new Date(day.dateString);
               setSelectedDay(pressedDate);
               fetchFeelings(pressedDate);
             }}
-            onMonthChange={(month) => { setVisibleDate(new Date(month.dateString)); }}
+            onMonthChange={(month) => { 
+              setVisibleDate(new Date(month.dateString)); 
+            }}
+            markedDates={{
+              [selectedDay.toISOString().split('T')[0]]: {
+                selected: true,
+                selectedColor: '#0284c7'
+              }
+            }}
+            theme={{
+              todayTextColor: "#0284c7",
+              arrowColor: "#0284c7",
+              textMonthFontSize: 17,
+              textMonthFontWeight: "bold",
+              textDayFontSize: 15,
+              textDayFontWeight: "500",
+            }}
           />
         </View>
 
+        {/* Gráfico de Sentimentos */}
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Sentimentos no dia</Text>
-          <FeelingsChart data={feelingDataForChart} maxValue={maxValue} layout="horizontal" />
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Sentimentos do Dia</Text>
+            {feelingsList.length > 0 && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{feelingsList.length}</Text>
+              </View>
+            )}
+          </View>
 
-          <TouchableOpacity
-            style={styles.buttonSeeMotives}
-            onPress={() => setModalVisible(true)}
-          >
-            <Text style={styles.buttonText}>Ver motivos</Text>
-          </TouchableOpacity>
+          <View style={styles.chartWrapper}>
+            <FeelingsChart 
+              data={feelingDataForChart} 
+              maxValue={maxValue} 
+              layout="horizontal" 
+            />
+          </View>
+
+          {feelingsList.length > 0 ? (
+            <TouchableOpacity
+              style={styles.buttonSeeMotives}
+              onPress={() => setModalVisible(true)}
+              activeOpacity={0.8}
+            >
+              <Eye size={18} color="#0284c7" />
+              <Text style={styles.buttonSeeMotivestext}>Ver motivos detalhados</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>Nenhum sentimento registrado neste dia</Text>
+            </View>
+          )}
         </View>
 
+        {/* Modal de Motivos */}
         <Modal
           visible={modalVisible}
           transparent={true}
@@ -144,8 +202,14 @@ const Analystic = () => {
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalView}>
-              <Text style={styles.modalTitle}>Motivos dos sentimentos</Text>
-              <ScrollView style={{ maxHeight: 300, width: '100%' }}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Motivos dos Sentimentos</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <X size={24} color="#1e293b" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
                 {feelingsList.length > 0 ? (
                   Object.entries(feelingsList.reduce((acc: any, f: any) => {
                     const description = f.description === 'NÃO_SEI_DIZER' ? 'NEUTRO' : f.description;
@@ -153,28 +217,61 @@ const Analystic = () => {
                     if (f.motive) acc[description].push(f.motive);
                     return acc;
                   }, {})).map(([feeling, motives], index) => (
-                    <View key={index} style={{ marginBottom: 10 }}>
-                      <Text style={{ color: feelingColors[feeling], fontWeight: 'bold', fontSize: 16 }}>
-                        {feeling}
-                      </Text>
-                      {motives.map((motive, idx) => (
-                        <Text key={idx} style={{ fontSize: 14, marginLeft: 10, marginTop: 2 }}>• {motive}</Text>
-                      ))}
+                    <View key={index} style={styles.motivesGroup}>
+                      <View style={styles.feelingBadge}>
+                        <View 
+                          style={[
+                            styles.feelingDot, 
+                            { backgroundColor: feelingColors[feeling] }
+                          ]} 
+                        />
+                        <Text style={styles.feelingName}>{feeling}</Text>
+                      </View>
+                      {motives.length > 0 ? (
+                        motives.map((motive, idx) => (
+                          <View key={idx} style={styles.motiveItem}>
+                            <Text style={styles.motiveBullet}>•</Text>
+                            <Text style={styles.motiveText}>{motive}</Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.noMotiveText}>Sem motivo especificado</Text>
+                      )}
                     </View>
                   ))
                 ) : (
-                  <Text style={{ textAlign: 'center', marginTop: 10 }}>Nenhum sentimento registrado nesse dia.</Text>
+                  <Text style={styles.emptyModalText}>
+                    Nenhum sentimento registrado nesse dia.
+                  </Text>
                 )}
               </ScrollView>
-              <TouchableOpacity style={styles.buttonCloseModal} onPress={() => setModalVisible(false)}>
-                <Text style={styles.buttonText}>Fechar</Text>
+
+              <TouchableOpacity 
+                style={styles.buttonCloseModal} 
+                onPress={() => setModalVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonCloseText}>Fechar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        <TouchableOpacity style={styles.buttonMonthlyReport} onPress={() => router.replace('/pages/Charts/Month')}>
-          <Text style={{ fontSize: 12, fontWeight:'semibold' }}>ACESSAR RELATÓRIO MENSAL</Text>
+        {/* Botão Relatório Mensal */}
+        <TouchableOpacity 
+          style={styles.buttonMonthlyReport} 
+          onPress={() => router.replace('/pages/Charts/Month')}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#0284c7', '#0369a1']}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <TrendingUp size={20} color="#fff" />
+            <Text style={styles.buttonMonthlyText}>Relatório Mensal</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         <View style={{ height: 20 }} />
@@ -185,153 +282,260 @@ const Analystic = () => {
 
 export default Analystic;
 
-
-
 const styles = StyleSheet.create({
   background: {
-    flex: 1
-  },
-  container: {
     flex: 1,
-    backgroundColor: 'transparent',
-
   },
-  Seta: {
-    alignItems: 'center',
+  header: {
     flexDirection: 'row',
-    gap: 5,
-    marginTop: StatusBar.currentHeight || 50,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 60,
+    paddingBottom: 20,
   },
   botaoVoltar: {
-    padding: 10,
-    borderRadius: 5,
-    left: 10,
-  },
-  calendarContainer: {
-    backgroundColor: '#FFFFFF',
-    padding: '2%',
-    borderRadius: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: "#0284c7",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    margin: 10
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  headerInfo: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  selectedDateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  selectedDateText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  calendarContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   calendarHeaderText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
     textAlign: 'center',
-    fontFamily: 'Nunito',
-    bottom: 3
   },
   chartContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     borderRadius: 20,
-    padding: 10,
-    margin: 10,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   chartTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000000',
-    fontFamily: 'Nunito',
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  countBadge: {
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  countText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0284c7',
+  },
+  chartWrapper: {
+    marginBottom: 20,
+  },
+  buttonSeeMotives: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bae6fd',
+  },
+  buttonSeeMotivestext: {
+    color: '#0284c7',
+    fontWeight: '600',
+    fontSize: 15,
+  },
+  emptyState: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: '#64748b',
     textAlign: 'center',
-    marginTop: '3%'
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalView: {
     margin: 20,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 25,
-    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    width: '85%',
+    maxHeight: '70%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    width: '80%',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
   },
-  button: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
-    minWidth: 100,
-    marginTop: 15,
-  },
-  buttonClose: {
-    backgroundColor: '#27361f',
-  },
-  buttonSeeMotives: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 10,
-
-    alignSelf: 'center'
-  },
-  buttonText: {
-    color: '#000000',
-    textDecorationLine: 'underline',
-    fontWeight: 'bold',
-    fontFamily: 'Nunito',
-    textAlign: 'center'
-  },
-  textStyle: {
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    fontFamily: 'Nunito'
-  },
-  modalTitleText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-    fontFamily: 'Nunito'
-  },
-  modalText: {
-    marginBottom: 15,
-    textAlign: 'center',
-    fontSize: 16,
-    fontFamily: 'Nunito',
-  },
-  buttonCloseModal: {
-    marginTop: 15,
-    padding: 10,
-    borderRadius: 10,
-
-    width: 100,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    alignSelf: 'center'
+    marginBottom: 20,
   },
   modalTitle: {
-    marginBottom: '5%',
-    fontWeight: 'bold'
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  modalScroll: {
+    maxHeight: 300,
+  },
+  motivesGroup: {
+    marginBottom: 20,
+  },
+  feelingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  feelingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  feelingName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  motiveItem: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    paddingLeft: 20,
+  },
+  motiveBullet: {
+    fontSize: 16,
+    color: '#64748b',
+    marginRight: 8,
+  },
+  motiveText: {
+    fontSize: 14,
+    color: '#475569',
+    flex: 1,
+    lineHeight: 20,
+  },
+  noMotiveText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+    paddingLeft: 20,
+  },
+  emptyModalText: {
+    textAlign: 'center',
+    fontSize: 15,
+    color: '#64748b',
+    paddingVertical: 20,
+  },
+  buttonCloseModal: {
+    marginTop: 20,
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  buttonCloseText: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 16,
   },
   buttonMonthlyReport: {
-    height: 40,
-    width: '60%',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  buttonGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: '2%',
-    borderRadius: 20,
-    borderWidth: 1,
-    alignSelf: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 10
+    gap: 10,
+    paddingVertical: 16,
+  },
+  buttonMonthlyText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

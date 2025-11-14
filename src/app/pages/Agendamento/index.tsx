@@ -1,17 +1,16 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Filter, Search } from "lucide-react-native";
+import { Filter, Mail, MapPin, Phone, Search, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   FlatList,
-  Image,
   Modal,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from "../../../context/UserContext";
@@ -34,6 +33,7 @@ export default function Profissional() {
   const [filteredProfessionals, setFilteredProfessionals] = useState<Professional[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [searchCity, setSearchCity] = useState('');
+  const [filterActive, setFilterActive] = useState(false);
   const router = useRouter();
   const { userId } = useUser();
 
@@ -66,19 +66,19 @@ export default function Profissional() {
     });
   }
 
-  // Cidades únicas retornadas pela API
   const cidades = Array.from(new Set(professionals.map(p => p.city))).sort();
 
-  // Filtro por cidade
   function filtrarPorCidade(cidade: string) {
     if (!cidade) {
       setFilteredProfessionals(professionals);
+      setFilterActive(false);
       return;
     }
     const filtrados = professionals.filter(p =>
       p.city.toLowerCase().includes(cidade.toLowerCase())
     );
     setFilteredProfessionals(filtrados);
+    setFilterActive(true);
   }
 
   function handleSelecionarCidade(cidade: string) {
@@ -87,44 +87,83 @@ export default function Profissional() {
     setSearchCity('');
   }
 
+  function limparFiltro() {
+    setFilteredProfessionals(professionals);
+    setShowModal(false);
+    setSearchCity('');
+    setFilterActive(false);
+  }
+
   return (
-    <LinearGradient colors={['#dbeafe', '#eff6ff']} style={{ flex: 1 }}>
-      <View style={{ marginTop: '15%' }}>
-        {/* 🔍 Barra de busca e filtro */}
+    <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.container}>
+      <View style={styles.content}>
+        {/* Header com título */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profissionais</Text>
+          <Text style={styles.headerSubtitle}>
+            {filteredProfessionals.length} {filteredProfessionals.length === 1 ? 'profissional' : 'profissionais'}
+          </Text>
+        </View>
+
+        {/* Barra de busca aprimorada */}
         <View style={styles.searchContainer}>
-          <View style={styles.searchProf}>
+          <View style={styles.searchWrapper}>
+            <Search size={20} color="#64748b" style={styles.searchIcon} />
             <TextInput
-              placeholder='Buscar profissional'
-              placeholderTextColor={'#4a4a4a'}
-              style={{ borderRadius: 20, width: '85%' }}
+              placeholder='Buscar por nome...'
+              placeholderTextColor='#94a3b8'
+              style={styles.searchInput}
               value={nameProf}
               onChangeText={setNameProf}
+              onSubmitEditing={buscarProfissional}
             />
-            <TouchableOpacity onPress={buscarProfissional}>
-              <Search size={20} color={'#161616ff'} style={styles.icon} />
-            </TouchableOpacity>
+            {nameProf.length > 0 && (
+              <TouchableOpacity onPress={() => setNameProf('')}>
+                <X size={18} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
           </View>
 
           <TouchableOpacity
             onPress={() => setShowModal(true)}
-            style={styles.filterButton}
+            style={[styles.filterButton, filterActive && styles.filterButtonActive]}
           >
-            <Filter size={20} color="#161616ff" />
+            <Filter size={20} color={filterActive ? "#fff" : "#1e293b"} />
+            {filterActive && <View style={styles.filterDot} />}
           </TouchableOpacity>
         </View>
 
-        {/* 🧩 Modal de filtro por cidade */}
+        {/* Indicador de filtro ativo */}
+        {filterActive && (
+          <View style={styles.filterChip}>
+            <Text style={styles.filterChipText}>Filtro ativo</Text>
+            <TouchableOpacity onPress={limparFiltro}>
+              <X size={14} color="#0284c7" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Modal melhorado */}
         <Modal visible={showModal} transparent animationType="slide">
-          <View style={styles.modalContainer}>
+          <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Filtrar por cidade</Text>
-              <TextInput
-                placeholder="Pesquisar cidade"
-                placeholderTextColor="#666"
-                value={searchCity}
-                onChangeText={setSearchCity}
-                style={styles.modalInput}
-              />
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filtrar por cidade</Text>
+                <TouchableOpacity onPress={() => setShowModal(false)}>
+                  <X size={24} color="#1e293b" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.modalSearchWrapper}>
+                <Search size={18} color="#64748b" />
+                <TextInput
+                  placeholder="Pesquisar cidade..."
+                  placeholderTextColor="#94a3b8"
+                  value={searchCity}
+                  onChangeText={setSearchCity}
+                  style={styles.modalSearchInput}
+                />
+              </View>
 
               <FlatList
                 data={cidades.filter(c =>
@@ -136,29 +175,25 @@ export default function Profissional() {
                     style={styles.cityItem}
                     onPress={() => handleSelecionarCidade(item)}
                   >
+                    <MapPin size={18} color="#0284c7" />
                     <Text style={styles.cityText}>{item}</Text>
                   </TouchableOpacity>
                 )}
+                style={styles.cityList}
               />
 
-              <TouchableOpacity
-                onPress={() => {
-                  setFilteredProfessionals(professionals);
-                  setShowModal(false);
-                  setSearchCity('');
-                }}
-                style={styles.btnLimpar}
-              >
+              <TouchableOpacity onPress={limparFiltro} style={styles.btnLimpar}>
                 <Text style={styles.txtLimpar}>Limpar filtro</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
 
-        {/* 👩‍⚕️ Lista de profissionais */}
+        {/* Lista de profissionais aprimorada */}
         {filteredProfessionals.length === 0 ? (
-          <View style={styles.empty}>
-            <Text>Nenhum profissional encontrado.</Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Nenhum profissional encontrado</Text>
+            <Text style={styles.emptySubtitle}>Tente ajustar sua busca ou filtros</Text>
           </View>
         ) : (
           <FlatList
@@ -166,24 +201,52 @@ export default function Profissional() {
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <View style={styles.card}>
-                <Image source={{ uri: item.foto }} style={styles.foto} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.nome}>{item.name}</Text>
-                  <Text style={styles.info}>{item.email}</Text>
-                  <Text style={styles.info}>{item.phone}</Text>
-                  <Text style={styles.info}>
-                    {`${item.address}, ${item.neighborhood}, ${item.city} - ${item.uf}`}
-                  </Text>
+                <View style={styles.cardHeader}>
+                 
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.nome}>{item.name}</Text>
+                    <View style={styles.infoRow}>
+                      <MapPin size={14} color="#64748b" />
+                      <Text style={styles.infoText}>{item.city} - {item.uf}</Text>
+                    </View>
+                  </View>
                 </View>
+
+                <View style={styles.cardDetails}>
+                  <View style={styles.detailRow}>
+                    <Mail size={14} color="#64748b" />
+                    <Text style={styles.detailText}>{item.email}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Phone size={14} color="#64748b" />
+                    <Text style={styles.detailText}>{item.phone}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <MapPin size={14} color="#64748b" />
+                    <Text style={styles.detailText}>
+                      {item.address}, {item.neighborhood}
+                    </Text>
+                  </View>
+                </View>
+
                 <TouchableOpacity
                   onPress={() => handleAgendar(item.id)}
                   style={styles.btnAgendar}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.txtAgendar}>Agendar</Text>
+                  <LinearGradient
+                    colors={['#0284c7', '#0369a1']}
+                    style={styles.btnGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.txtAgendar}>Agendar Consulta</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             )}
-            contentContainerStyle={{ paddingBottom: 80 }}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
           />
         )}
       </View>
@@ -192,122 +255,259 @@ export default function Profissional() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    marginTop: '15%',
+  },
+  header: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    fontWeight: '500',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '90%',
-    alignSelf: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 12,
   },
-  searchProf: {
-    borderWidth: 1,
-    borderColor: 'black',
-    width: '88%',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    
-    backgroundColor: '#f0f0f0',
+  searchWrapper: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    height: 52,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#0f172a',
   },
   filterButton: {
-    marginLeft: 5,
-   
-    padding: 10,
-    borderRadius: 50,
- 
-  },
-  icon: { 
-    top: 0, 
-    left:20 },
-  empty: { 
-    justifyContent: "center", 
-    alignItems: "center"
-   },
-  card: {
-    backgroundColor: "#f0f0f0",
-    marginHorizontal: 16,
-    marginVertical: 8,
-    padding: 10,
-    paddingLeft: 15,
-    borderRadius: 20,
-    elevation: 3,
-    shadowColor: "#000000",
-    shadowRadius: 5,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  nome: { 
-    fontSize: 14, 
-    fontWeight: "bold", 
-    color: 'black' },
-  info: { 
-    fontSize: 12,
-     color: "#666" },
-  btnAgendar: {
-    borderWidth: 1,
-    borderRadius: 20,
-    width: '30%',
-    marginTop: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  txtAgendar: {
-    fontFamily: 'Nunito',
-    fontWeight: '700',
-    alignSelf: 'center',
+    width: 52,
+    height: 52,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     justifyContent: 'center',
-    fontSize: 16,
-    color: 'black',
+    alignItems: 'center',
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+    position: 'relative',
   },
-  // Modal
-  modalContainer: {
+  filterButtonActive: {
+    backgroundColor: '#0284c7',
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fbbf24',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#e0f2fe',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0284c7',
+  },
+  modalOverlay: {
     flex: 1,
-    
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    width: '85%',
-    backgroundColor: "#f0f0f0",
-    borderRadius: 20,
-    borderWidth:1,
-    borderColor:'#000',
-    padding: 20,
-    elevation: 10,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#000",
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#0f172a',
   },
-  modalInput: {
-    borderWidth: 1.5,
-    borderColor: "#ccc",
+  modalSearchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    color: "#000",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    gap: 12,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#0f172a',
+  },
+  cityList: {
+    maxHeight: 300,
   },
   cityItem: {
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderColor: "#eee",
+    borderBottomColor: '#f1f5f9',
+    gap: 12,
   },
   cityText: {
-    fontSize: 15,
-    color: "#333",
+    fontSize: 16,
+    color: '#1e293b',
+    fontWeight: '500',
   },
   btnLimpar: {
-    marginTop: 10,
-    backgroundColor: '#f0f0f0',
+    marginTop: 16,
+    backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    paddingVertical: 8,
-    borderWidth: 1.5,
-    borderColor: '#ccc',
+    paddingVertical: 14,
   },
   txtLimpar: {
     textAlign: 'center',
     fontWeight: '600',
-    color: '#000',
+    fontSize: 16,
+    color: '#475569',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  foto: {
+    width: 70,
+    height: 70,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+  },
+  cardInfo: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'center',
+  },
+  nome: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 6,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  cardDetails: {
+    gap: 10,
+    marginBottom: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#475569',
+    flex: 1,
+  },
+  btnAgendar: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  btnGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  txtAgendar: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

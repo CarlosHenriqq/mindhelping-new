@@ -29,7 +29,7 @@ const FAQ_DATA = [
     {
         id: '2',
         question: 'Posso exportar meu histórico?',
-        answer: 'Sim! Na seção "Gerenciar Conta" (em breve), você poderá solicitar uma cópia de todos os seus dados, incluindo registros de humor e anotações do diário.',
+        answer: 'Estamos quase lá, vamos futuramente liberar, na seção "Gerenciar Conta", a opção de solicitar uma cópia de todos os seus dados, incluindo registros de humor e anotações do diário.',
     },
     {
         id: '3',
@@ -71,7 +71,7 @@ export default function FAQ() {
 
     return (
         <LinearGradient
-            colors={['#eff6ff', '#dbeafe']}
+            colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
             style={styles.background}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer}>

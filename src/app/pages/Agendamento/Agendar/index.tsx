@@ -2,17 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { Calendar as CalendarIcon, ChevronLeft, Clock, Mail, MapPin, Phone } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
   FlatList,
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { Calendar, DateObject } from "react-native-calendars";
 import { CustomAlert, useCustomAlert } from "../../../../components/CustomAlert";
@@ -30,13 +29,12 @@ export interface Professional {
 }
 
 export interface Vaga {
-  date: string; // formato: "2025-09-05"
-  hours: string[]; // horários disponíveis nesse dia
+  date: string;
+  hours: string[];
 }
 
 export default function AgendarConsulta() {
   const { id, returnTo } = useLocalSearchParams();
-
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [markedDates, setMarkedDates] = useState<any>({});
@@ -48,7 +46,7 @@ export default function AgendarConsulta() {
   const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
   const [modalVisible, setModalVisible] = useState(false);
   const [hourSelected, setHourSelected] = useState<string | null>(null);
-  const [selectedHourlyMap, setSelectedHourlyMap] = useState<Map<string, any> | null>(null); // 🔥 NOVO
+  const [selectedHourlyMap, setSelectedHourlyMap] = useState<Map<string, any> | null>(null);
 
   useEffect(() => {
     async function fetchProf() {
@@ -56,16 +54,13 @@ export default function AgendarConsulta() {
         const url = `${API_BASE_URL}${ENDPOINTS.PROFESSIONAL_ID(id)}`;
         console.log("🔗 URL chamada:", url);
         const response = await axios.get(url);
-
         setProfessional(response.data.professional);
       } catch (error) {
         console.log("Erro ao buscar profissional:", error);
       }
     }
-
     if (id) fetchProf();
   }, [id]);
-
 
   async function fetchSchedules() {
     try {
@@ -78,7 +73,6 @@ export default function AgendarConsulta() {
 
       const schedulesData = response.data.schedules;
 
-      // Verifica se há schedules
       if (!schedulesData || schedulesData.length === 0) {
         console.log("⚠️ Nenhuma agenda cadastrada para este profissional");
         setSchedules([]);
@@ -92,7 +86,6 @@ export default function AgendarConsulta() {
       const vagasConvertidas: Vaga[] = [];
       schedulesData.forEach((sch: any) => {
         if (!sch.initialTime) return;
-
         const [date] = sch.initialTime.split("T");
         const existing = vagasConvertidas.find((v) => v.date === date);
         if (!existing) {
@@ -106,7 +99,7 @@ export default function AgendarConsulta() {
       vagasConvertidas.forEach((vaga) => {
         marks[vaga.date] = {
           customStyles: {
-            container: { backgroundColor: '#27ae60', borderRadius: 10 },
+            container: { backgroundColor: '#0ea5e9', borderRadius: 12 },
             text: { color: "white", fontWeight: "bold" },
           },
         };
@@ -114,10 +107,6 @@ export default function AgendarConsulta() {
       setMarkedDates(marks);
     } catch (error: any) {
       console.log("❌ Erro ao buscar schedules:", error);
-      console.log("❌ Response:", error.response?.data);
-      console.log("❌ Status:", error.response?.status);
-
-      // Se for 404, provavelmente não há agendas cadastradas
       if (error.response?.status === 404) {
         console.log("⚠️ Endpoint não encontrado ou sem agendas para este profissional");
         setSchedules([]);
@@ -129,18 +118,13 @@ export default function AgendarConsulta() {
 
   useEffect(() => {
     if (!id) return;
-
-    // Limpar estados antes de buscar novos dados
     setSchedules([]);
     setVagas([]);
     setMarkedDates({});
     setSelectedDate(null);
     setHorarios([]);
-
     fetchSchedules();
-  }, [id]); // ← Adicionar id como dependência
-
-
+  }, [id]);
 
   async function onDayPress(day: DateObject) {
     setSelectedDate(day.dateString);
@@ -160,27 +144,22 @@ export default function AgendarConsulta() {
 
       const response = await axios.get(url);
       const hourlies = response.data.hourlies;
-
       const availableHourlies = hourlies.filter((h: any) => !h.isOcuped);
 
-      // 🔥 Criar mapa de hora -> hourly completo
       const hourlyMap = new Map(
         availableHourlies.map((h: any) => [h.hour, h])
       );
 
-      // 🔥 Salvar o mapa
       setSelectedHourlyMap(hourlyMap);
 
       const availableHours = availableHourlies.map((h: any) => h.hour);
       setHorarios(availableHours);
 
       console.log("✅ Hourlies disponíveis:", availableHourlies);
-
     } catch (error) {
       console.log("Erro ao buscar horários:", error);
     }
   }
-
 
   async function confirmScheduling() {
     if (!selectedDate || !hourSelected) return;
@@ -203,7 +182,6 @@ export default function AgendarConsulta() {
     }
 
     console.log("💾 Hourly selecionado:", hourly);
-    console.log("💾 ID do hourly:", hourly.id);
 
     try {
       const payload = {
@@ -224,8 +202,6 @@ export default function AgendarConsulta() {
 
       console.log("✅ Agendamento realizado:", response.data);
 
-      // 🔥 USAR O HOURLY.ID COMO CHAVE DIRETAMENTE
-      // Já que não temos o appointmentId, vamos criar um mapeamento diferente
       const cacheData = {
         hourlyId: hourly.id,
         date: selectedDate,
@@ -236,14 +212,10 @@ export default function AgendarConsulta() {
         createdAt: new Date().toISOString()
       };
 
-      // Salvar usando uma chave composta: userId + date + hour
       const cacheKey = `appointment_${userId}_${selectedDate}_${hourSelected}`;
       await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheData));
 
-      console.log("💾 ============ SALVANDO NO CACHE ============");
-      console.log("💾 Cache key:", cacheKey);
-      console.log("💾 Cache data:", cacheData);
-      console.log("💾 ============================================");
+      console.log("💾 Cache salvado:", cacheKey);
 
       setModalVisible(false);
 
@@ -277,33 +249,30 @@ export default function AgendarConsulta() {
     }
   }
 
-
-
-
   function formatDateBR(dateString: string) {
     const [year, month, day] = dateString.split("-");
     return `${day}/${month}/${year}`;
   }
+
   useEffect(() => {
     const marks: any = {};
     vagas.forEach((vaga) => {
       marks[vaga.date] = {
         customStyles: {
-          container: { backgroundColor: '#27ae60', borderRadius: 10 },
+          container: { backgroundColor: '#0ea5e9', borderRadius: 12 },
           text: { color: "white", fontWeight: "bold" },
         },
       };
     });
-
     setMarkedDates(marks);
-  }, [vagas]); // só roda quando `vagas` muda
+  }, [vagas]);
 
   const meses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ];
-  const handleGoBack = () => {
 
+  const handleGoBack = () => {
     if (returnTo) {
       router.replace(returnTo as any);
     } else {
@@ -311,92 +280,121 @@ export default function AgendarConsulta() {
     }
   };
 
-
-
   return (
     <View style={{ flex: 1 }}>
-      <LinearGradient colors={['#eff6ff', '#dbeafe']} style={{ flex: 1 }}>
+      <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={{ flex: 1 }}>
+        <ScrollView bounces={false} contentContainerStyle={{ flexGrow: 1 }}>
+          {/* Header com botão voltar */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
+              <ChevronLeft color="#0f172a" size={24} strokeWidth={2.5} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Agendar Consulta</Text>
+            <View style={{ width: 40 }} />
+          </View>
 
-        <ScrollView
-          bounces={false}
-          contentContainerStyle={{ flexGrow: 1 }} // ← IMPORTANTE!
-        >
-          <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
-            <ChevronLeft color="#333" size={24} />
-            <Text style={styles.textoVoltar}>Voltar</Text>
-          </TouchableOpacity>
           <View style={styles.screen}>
-            <Text style={styles.title}>Agendamento de consulta</Text>
-
+            {/* Card do profissional aprimorado */}
             {professional ? (
               <View style={styles.card}>
-                <Image
-                  source={{
-                    uri: `https://i.pravatar.cc/150?u=${professional.email}`,
-                  }}
-                  style={styles.foto}
-                />
-                <View style={styles.infoContainer}>
-                  <Text style={styles.name}>{professional.name}</Text>
-                  <Text style={styles.infoText}>E-mail: {professional.email}</Text>
-                  <Text style={styles.infoText}>Telefone: {professional.phone}</Text>
-                  <Text style={styles.infoText}>
-                    Endereço:{" "}
-                    {`${professional.address}, ${professional.neighborhood}, ${professional.city} - ${professional.uf}`}
-                  </Text>
+                <View style={styles.cardHeader}>
+                  
+                  <View style={styles.profInfo}>
+                    <Text style={styles.profName}>{professional.name}</Text>
+                    <Text style={styles.profTitle}>Psicólogo(a)</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.contactInfo}>
+                  <View style={styles.infoRow}>
+                    <Mail size={16} color="#64748b" />
+                    <Text style={styles.infoText}>{professional.email}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Phone size={16} color="#64748b" />
+                    <Text style={styles.infoText}>{professional.phone}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <MapPin size={16} color="#64748b" />
+                    <Text style={styles.infoText}>
+                      {`${professional.address}, ${professional.neighborhood}`}
+                    </Text>
+                  </View>
+                  <View style={[styles.infoRow, { paddingLeft: 22 }]}>
+                    <Text style={styles.infoText}>
+                      {`${professional.city} - ${professional.uf}`}
+                    </Text>
+                  </View>
                 </View>
               </View>
             ) : (
-              <Text style={{ marginTop: 20 }}>Carregando informações...</Text>
+              <View style={styles.loadingCard}>
+                <Text style={styles.loadingText}>Carregando informações...</Text>
+              </View>
             )}
 
-            {/* 📅 Calendário */}
+            {/* Calendário aprimorado */}
             <View style={styles.agendaContainer}>
-              <Calendar
-                onDayPress={onDayPress}
-                markedDates={{
-                  ...markedDates,
-                  ...(selectedDate && {
-                    [selectedDate]: {
-                      selected: true,
-                      selectedColor: "#2980B9",
-                      marked: markedDates[selectedDate]?.marked,
-                      dotColor: markedDates[selectedDate]?.dotColor || "green",
-                    },
-                  }),
-                }}
-                markingType="custom"
-                current={visibleDate.toISOString().split('T')[0]}
-                renderHeader={(date) => {
-                  const mes = meses[date.getMonth()];
-                  const ano = date.getFullYear();
-                  return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
-                }}
-                onMonthChange={(month) => {
-                  setVisibleDate(new Date(month.dateString));
-                }}
-                theme={{
-                  todayTextColor: "#2980B9",
-                  arrowColor: "#2980B9",
-                  textMonthFontSize: 20,
-                  textMonthFontWeight: "bold",
-                }}
-                style={{ borderRadius: 20, padding: 10 }}
-              />
+              <View style={styles.calendarHeader}>
+                <CalendarIcon size={20} color="#0284c7" />
+                <Text style={styles.calendarTitle}>Selecione uma data</Text>
+              </View>
+
+              <View style={styles.calendarWrapper}>
+                <Calendar
+                  onDayPress={onDayPress}
+                  markedDates={{
+                    ...markedDates,
+                    ...(selectedDate && {
+                      [selectedDate]: {
+                        selected: true,
+                        selectedColor: "#0284c7",
+                        marked: markedDates[selectedDate]?.marked,
+                        dotColor: markedDates[selectedDate]?.dotColor,
+                      },
+                    }),
+                  }}
+                  markingType="custom"
+                  current={visibleDate.toISOString().split('T')[0]}
+                  renderHeader={(date) => {
+                    const mes = meses[date.getMonth()];
+                    const ano = date.getFullYear();
+                    return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
+                  }}
+                  onMonthChange={(month) => {
+                    setVisibleDate(new Date(month.dateString));
+                  }}
+                  theme={{
+                    todayTextColor: "#0284c7",
+                    arrowColor: "#0284c7",
+                    textMonthFontSize: 18,
+                    textMonthFontWeight: "bold",
+                    textDayFontSize: 15,
+                    textDayFontWeight: "500",
+                  }}
+                  style={styles.calendar}
+                />
+              </View>
 
               {/* Horários disponíveis */}
               {selectedDate && (
-                <View style={{ marginTop: 20, paddingBottom: 20 }}>
-                  <Text style={styles.subtitle}>
-                    Horários em {formatDateBR(selectedDate)}:
-                  </Text>
+                <View style={styles.horariosContainer}>
+                  <View style={styles.horariosHeader}>
+                    <Clock size={20} color="#0284c7" />
+                    <Text style={styles.horariosTitle}>
+                      Horários em {formatDateBR(selectedDate)}
+                    </Text>
+                  </View>
+
                   {horarios.length > 0 ? (
                     <FlatList
                       scrollEnabled={false}
                       data={horarios}
                       keyExtractor={(item, index) => index.toString()}
                       numColumns={3}
-                      columnWrapperStyle={{ justifyContent: "space-between" }}
+                      columnWrapperStyle={styles.horariosGrid}
                       renderItem={({ item }) => (
                         <TouchableOpacity
                           style={styles.horaBtn}
@@ -404,13 +402,16 @@ export default function AgendarConsulta() {
                             setHourSelected(item);
                             setModalVisible(true);
                           }}
+                          activeOpacity={0.7}
                         >
                           <Text style={styles.horaText}>{item}</Text>
                         </TouchableOpacity>
                       )}
                     />
                   ) : (
-                    <Text style={{ marginTop: 10 }}>Sem horários disponíveis</Text>
+                    <View style={styles.noHorariosContainer}>
+                      <Text style={styles.noHorariosText}>Sem horários disponíveis</Text>
+                    </View>
                   )}
                 </View>
               )}
@@ -418,7 +419,7 @@ export default function AgendarConsulta() {
           </View>
         </ScrollView>
 
-        {/* Modal de confirmação */}
+        {/* Modal aprimorado */}
         <Modal
           animationType="fade"
           transparent={true}
@@ -427,29 +428,56 @@ export default function AgendarConsulta() {
         >
           <View style={styles.modalBackground}>
             <View style={styles.modalContainer}>
+              <View style={styles.modalIconContainer}>
+                <CalendarIcon size={32} color="#0284c7" />
+              </View>
+              
               <Text style={styles.modalTitle}>Confirmar Agendamento</Text>
-              <Text style={styles.modalText}>
-                Deseja confirmar o agendamento em{"\n"}
-                {selectedDate ? formatDateBR(selectedDate) : ""} às{" "}
-                {hourSelected}?
+              
+              <View style={styles.modalInfoBox}>
+                <View style={styles.modalInfoRow}>
+                  <CalendarIcon size={18} color="#64748b" />
+                  <Text style={styles.modalInfoText}>
+                    {selectedDate ? formatDateBR(selectedDate) : ""}
+                  </Text>
+                </View>
+                <View style={styles.modalInfoRow}>
+                  <Clock size={18} color="#64748b" />
+                  <Text style={styles.modalInfoText}>{hourSelected}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.modalSubtext}>
+                Deseja confirmar este agendamento?
               </Text>
+
               <View style={styles.modalActions}>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: "#95a5a6" }]}
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
                   onPress={() => setModalVisible(false)}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.modalBtnText}>Cancelar</Text>
+                  <Text style={styles.modalBtnTextCancel}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: "#27ae60" }]}
+                  style={[styles.modalBtn, styles.modalBtnConfirm]}
                   onPress={confirmScheduling}
+                  activeOpacity={0.8}
                 >
-                  <Text style={styles.modalBtnText}>Confirmar</Text>
+                  <LinearGradient
+                    colors={['#0284c7', '#0369a1']}
+                    style={styles.btnGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.modalBtnTextConfirm}>Confirmar</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
+
         <CustomAlert
           visible={alertConfig.visible}
           type={alertConfig.type}
@@ -463,138 +491,270 @@ export default function AgendarConsulta() {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1, // ← Mantenha isso
-    paddingTop: 20,
-    alignItems: "center",
-    paddingBottom: 20, // ← Adicione um padding no final
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  botaoVoltar: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 50,
-    marginLeft: 10
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
   },
-  textoVoltar: {
-    fontSize: 16,
-    color: '#333',
-
+  botaoVoltar: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  screen: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   card: {
-    borderWidth: 1,
-    borderColor: "transparent",
+    backgroundColor: '#fff',
     borderRadius: 20,
-    marginHorizontal: "5%",
-    padding: 15,
-    width: "90%",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#fff",
-    shadowColor: "#000000",
-    shadowRadius: 10,
-    shadowOpacity: 0.25,
-    shadowOffset: { width: 0, height: 2 },
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
     elevation: 5,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   foto: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 70,
+    height: 70,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
   },
-  infoContainer: {
+  profInfo: {
+    marginLeft: 16,
     flex: 1,
-    marginLeft: "2.5%",
   },
-  name: {
+  profName: {
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 4,
+  },
+  profTitle: {
+    fontSize: 14,
+    color: '#0284c7',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e2e8f0',
+    marginBottom: 16,
+  },
+  contactInfo: {
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   infoText: {
     fontSize: 14,
-    color: "#333",
-    marginBottom: 4,
+    color: '#475569',
+    flex: 1,
+    lineHeight: 20,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#64748b',
   },
   agendaContainer: {
-    marginTop: "10%",
-    borderWidth: 1,
-    borderColor: "transparent",
-    width: "90%",
-    // REMOVA o flex: 1 daqui se tiver
-    marginBottom: 20, // ← Adicione margem no final
+    flex: 1,
   },
-  subtitle: {
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  calendarTitle: {
     fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-    color: "#333",
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  calendarWrapper: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  calendar: {
+    paddingVertical: 10,
   },
   calendarHeaderText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0f172a',
     textAlign: 'center',
-    fontFamily: 'Nunito',
-    bottom: 3
+  },
+  horariosContainer: {
+    marginTop: 24,
+  },
+  horariosHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  horariosTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  horariosGrid: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   horaBtn: {
-    backgroundColor: "#4a78b4ff",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    marginBottom: 10,
+    backgroundColor: '#0284c7',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     flex: 1,
-    marginHorizontal: 5,
-    alignItems: "center",
+    marginHorizontal: 4,
+    alignItems: 'center',
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   horaText: {
-    color: "white",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
-  // modal
-  modalBackground: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-  },
-  modalContainer: {
-    width: "80%",
-    backgroundColor: "white",
+  noHorariosContainer: {
+    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 20,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+  noHorariosText: {
+    fontSize: 15,
+    color: '#64748b',
   },
-  modalText: {
-    fontSize: 16,
-    textAlign: "center",
+  modalBackground: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  modalContainer: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#e0f2fe',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 20,
   },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInfoBox: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 16,
+    width: '100%',
+    gap: 12,
+    marginBottom: 16,
+  },
+  modalInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalInfoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  modalSubtext: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
   modalActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
   },
   modalBtn: {
     flex: 1,
-    marginHorizontal: 5,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  modalBtnText: {
-    color: "white",
-    fontWeight: "bold",
+  modalBtnCancel: {
+    backgroundColor: '#f1f5f9',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalBtnConfirm: {},
+  btnGradient: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalBtnTextCancel: {
+    color: '#475569',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  modalBtnTextConfirm: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

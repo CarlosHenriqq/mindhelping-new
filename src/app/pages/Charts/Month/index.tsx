@@ -107,11 +107,10 @@ const handleGoBack = () => {
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior="padding">
-            <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
-                <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
-                                <ChevronLeft color="#333" size={24} />
-                                <Text style={styles.textoVoltar}>Voltar</Text>
-                              </TouchableOpacity>
+            <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.background}>
+                <TouchableOpacity onPress={() => router.replace('/pages/Home')} style={styles.botaoVoltar}>
+                            <ChevronLeft color="#0f172a" size={24} strokeWidth={2.5} />
+                          </TouchableOpacity>
                 <View style={styles.header}>
                     
                     <Text style={styles.title}>Relatório Mensal</Text>
@@ -121,6 +120,7 @@ const handleGoBack = () => {
                             <TextInput
                                 placeholder="dd/mm/aaaa"
                                 keyboardType="numeric"
+                                placeholderTextColor={'#5c5959ff'}
                                 style={styles.inputData}
                                 maxLength={10}
                                 value={startDate}
@@ -129,6 +129,7 @@ const handleGoBack = () => {
                             <TextInput
                                 placeholder="dd/mm/aaaa"
                                 keyboardType="numeric"
+                                placeholderTextColor={'#5c5959ff'}
                                 style={styles.inputData}
                                 maxLength={10}
                                 value={endDate}
@@ -179,18 +180,23 @@ const styles = StyleSheet.create({
         flex: 1
     },
     botaoVoltar: {
-    flexDirection: 'row',
+    width: 40,
+    marginTop:45,
+    marginLeft:20,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 50,
-    marginLeft: 10
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  textoVoltar: {
-    fontSize: 16,
-    color: '#333',
-
-  },
+  
     header: {
-        marginTop: '25%',
+        marginTop: 25,
         paddingHorizontal: 20,
         alignItems: 'center',
     },

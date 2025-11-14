@@ -67,7 +67,7 @@ export default function Home() {
     const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
     const [userName, setUserName] = useState('');
     const { userId, loadingUser } = useUser();
- 
+
     const [userPhoto, setUserPhoto] = useState(null);
     const [schedulingId, setSchedulingId] = useState('');
     const [modalSelected, setModalSelect] = useState(false);
@@ -76,6 +76,7 @@ export default function Home() {
     const [isTipsModalVisible, setIsTipsModalVisible] = useState(false);
     const [modalContent, setModalContent] = useState({ title: '', tips: [] });
     const [nextAppointment, setNextAppointment] = useState(null);
+    // Ao exibir a hora:
 
     const fetchNextAppointment = async () => {
         if (!userId) {
@@ -102,19 +103,30 @@ export default function Home() {
 
             if (apiResponse && apiResponse.schedulingDetails) {
                 const details = apiResponse.schedulingDetails;
-                const appointmentDate = new Date(details.date);
+
+                // 🔥 PEGAR APENAS A PARTE DA DATA
+                const dateString = details.date.split('T')[0]; // "2025-11-20"
+
+                // 🔥 CRIAR DATA SEM CONVERSÃO DE TIMEZONE
+                const [year, month, day] = dateString.split('-');
+                const appointmentDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 
                 const now = new Date();
+                now.setHours(0, 0, 0, 0);
+
                 if (appointmentDate < now) {
                     console.log("Agendamento já passou.");
                     return null;
                 }
 
+                // 🔥 USAR A HORA DIRETO DO BACKEND
+                const displayHour = details.hour; // "08:00"
+
                 // 🔥 BUSCAR USANDO A CHAVE COMPOSTA
-                const dateString = appointmentDate.toISOString().split('T')[0];
-                const cacheKey = `appointment_${userId}_${dateString}_${details.hour}`;
+                const cacheKey = `appointment_${userId}_${dateString}_${displayHour}`;
 
                 console.log("💾 Buscando do cache com key:", cacheKey);
+                console.log("🕐 Hora que será exibida:", displayHour); // ← Debug
 
                 const cachedDataString = await AsyncStorage.getItem(cacheKey);
                 let cachedHourlyId = null;
@@ -125,15 +137,12 @@ export default function Home() {
                     console.log("💾 Dados do cache:", cachedData);
                 }
 
-
-
-
                 return {
                     schedulingId: details.id,
-                    hourlyId: details.hourlyId,
+                    hourlyId: cachedHourlyId || details.hourlyId,
                     professionalName: details.nameProfessional,
                     date: appointmentDate,
-                    hour: details.hour,
+                    hour: displayHour, // ← Isso deve ser "08:00"
                     title: 'Psicólogo(a)',
                     phone: details.phoneProfessional,
                     email: details.emailProfessional,
@@ -252,7 +261,7 @@ export default function Home() {
                 }
             });
 
-            
+
 
             // 🔥 Limpar do cache usando a chave composta
             const dateString = new Date(nextAppointment.date).toISOString().split('T')[0];
@@ -305,7 +314,7 @@ export default function Home() {
 
     return (
         <View style={{ flex: 1 }}>
-            <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+            <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.background}>
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}>
                     <ScrollView style={styles.screen}>
                         <View style={styles.feeling}>
@@ -367,7 +376,7 @@ export default function Home() {
                                         </View>
                                         <View style={styles.dadosConsulta}>
                                             <Text>{new Date(nextAppointment.date).toLocaleDateString('pt-BR')}</Text>
-                                            <Text>{new Date(nextAppointment.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}h</Text>
+                                            <Text>{nextAppointment.hour}</Text>
                                         </View>
 
                                         <View>
@@ -592,7 +601,7 @@ const styles = StyleSheet.create({
     },
     dadosConsulta: {
         flexDirection: 'row',
-        gap: '37.5%',
+        gap:130,
         marginBottom: 10,
     },
     maps: {
@@ -618,7 +627,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-around'
     },
     card: {
-        backgroundColor: '#7296c5ff',
+        backgroundColor: '#0284c7',
         width: '45%',
         padding: 15,
         borderRadius: 20,
@@ -648,7 +657,7 @@ const styles = StyleSheet.create({
         marginBottom: 15
     },
     modalButton: {
-        backgroundColor: '#2980B9',
+        backgroundColor: '#0284c7',
         padding: 12,
         borderRadius: 20,
         width: '100%',
@@ -665,7 +674,7 @@ const styles = StyleSheet.create({
         borderColor: '#000000',
         width: '50%',
         padding: 10,
-        backgroundColor: '#7296c5ff',
+        backgroundColor: '#0284c7',
         borderRadius: 20,
         alignSelf: 'center',
         justifyContent: "center",

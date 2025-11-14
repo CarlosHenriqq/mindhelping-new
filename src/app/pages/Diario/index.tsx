@@ -1,7 +1,7 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
-import { BrushCleaningIcon, Info, Pencil, Search, Trash2 } from "lucide-react-native";
+import { BrushCleaningIcon, Info, Plus, Search, Trash2 } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
     FlatList,
@@ -168,7 +168,7 @@ export default function Diario() {
     return (
         <View style={styles.container}>
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                <LinearGradient colors={['#eff6ff', '#dbeafe']} style={styles.background}>
+                <LinearGradient colors={['#f0f9ff', '#e0f2fe', '#bae6fd']} style={styles.background}>
 
                     {/* 🔍 Caixa de pesquisa */}
                     <View style={styles.searchContainer}>
@@ -207,18 +207,27 @@ export default function Diario() {
                                         const ano = date.getFullYear();
                                         return <Text style={styles.calendarHeaderText}>{`${mes} ${ano}`}</Text>;
                                     }}
-                                    style={{ width: 320 }}
                                     firstDay={1}
                                     onMonthChange={(month) => setVisibleDate(new Date(month.dateString))}
-                                    onDayPress={(day) => setSelectedDate(day.dateString)}
+                                    onDayPress={(day) => {
+                                        setSelectedDate(selectedDate === day.dateString ? null : day.dateString);
+                                    }}
                                     markedDates={
                                         selectedDate ? {
                                             [selectedDate]: {
                                                 selected: true,
-                                                selectedColor: '#3386BC'
+                                                selectedColor: '#0284c7'
                                             }
                                         } : {}
                                     }
+                                    theme={{
+                                        todayTextColor: "#0284c7",
+                                        arrowColor: "#0284c7",
+                                        textMonthFontSize: 17,
+                                        textMonthFontWeight: "bold",
+                                        textDayFontSize: 15,
+                                        textDayFontWeight: "500",
+                                    }}
                                 />
                             </View>
 
@@ -255,7 +264,7 @@ export default function Diario() {
                         style={styles.newMetaContainer}
                         onPress={() => router.push("/pages/Diario/Anotacoes")}
                     >
-                        <Pencil color={'#000000'} size={24} />
+                        <Plus color={'#ffffff'} size={24} />
                         {showAddHint && (
                             <Animatable.View animation="fadeInLeft" duration={1500} style={styles.hintBox}>
                                 <Text style={styles.hintText}>Adicionar nota</Text>
@@ -266,7 +275,7 @@ export default function Diario() {
                     {/* 🧹 Botão Limpar Filtros */}
                     {(searchText || selectedDate) && (
                         <TouchableOpacity style={styles.refreshContainer} onPress={cleanFilter}>
-                            <BrushCleaningIcon color={'#000000'} size={24} />
+                            <BrushCleaningIcon color={'#ffffff'} size={24} />
                             {showCleanHint && (
                                 <Animatable.View animation="fadeInLeft" duration={1500} style={styles.hintBox}>
                                     <Text style={styles.hintText}>Limpar filtros</Text>
@@ -382,7 +391,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
         right: 20,
-        backgroundColor: '#b1bfd1ff',
+        backgroundColor: '#0284c7',
         width: 60,
         height: 60,
         borderRadius: 30,
@@ -394,7 +403,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 100,
         right: 20,
-        backgroundColor: '#b1bfd1ff',
+        backgroundColor: '#0284c7',
         width: 60,
         height: 60,
         borderRadius: 30,
@@ -407,13 +416,13 @@ const styles = StyleSheet.create({
         right: 70,
         width: 130,
         height: 30,
-        backgroundColor: '#b1bfd1ff',
+        backgroundColor: '#0284c7',
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center'
     },
     hintText: {
-        color: '#000000',
+        color: '#ffffff',
         fontWeight: 'bold',
         fontSize: 14
     }

@@ -126,10 +126,10 @@ export default function EditPerfil() {
         try {
             const response = await axios.delete(`${API_BASE_URL}${ENDPOINTS.DELETE_USER(userId)}`);
             showSuccess('Conta excluída', 'Sua conta foi excluída com sucesso');
-            
+
             // Limpar o userId do contexto
             await logout();
-            
+
             // Redirecionar após 2 segundos
             setTimeout(() => {
                 router.replace('/auth/login');
@@ -181,7 +181,7 @@ export default function EditPerfil() {
         }
     };
 
-    const buscarEnderecoPorCEP = async (cep:string) => {
+    const buscarEnderecoPorCEP = async (cep: string) => {
         const cepLimpo = cep.replace(/\D/g, '');
 
         if (cepLimpo.length !== 8) {
@@ -269,7 +269,7 @@ export default function EditPerfil() {
 
     return (
         <LinearGradient
-            colors={['#eff6ff', '#dbeafe']}
+            colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
             style={styles.background}
         >
             <KeyboardAvoidingView
@@ -283,8 +283,7 @@ export default function EditPerfil() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
-                        <ChevronLeft color="#333" size={24} />
-                        <Text style={styles.textoVoltar}>Voltar</Text>
+                        <ChevronLeft color="#0f172a" size={24} strokeWidth={2.5} />
                     </TouchableOpacity>
                     {/* Header Perfil */}
                     <View style={styles.headerContainer}>
@@ -325,7 +324,7 @@ export default function EditPerfil() {
                         )}
 
                         <View style={styles.locationContainer}>
-                            <MapPin size={16} color={"#4b5563"} />
+                            <MapPin size={16} color={"#0284c7"} />
                             <Text style={styles.locationText}>Birigui - São Paulo</Text>
                         </View>
                     </View>
@@ -333,7 +332,7 @@ export default function EditPerfil() {
                     {/* Formulário */}
                     <View style={styles.formContainer}>
                         <View style={styles.inputWrapper}>
-                            <User color="#3386BC" size={20} style={styles.icon} />
+                            <User color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="Nome Completo"
                                 style={styles.input}
@@ -344,7 +343,7 @@ export default function EditPerfil() {
 
                         <View style={styles.row}>
                             <View style={[styles.inputWrapper, { flex: 1 }]}>
-                                <Calendar color="#3386BC" size={20} style={styles.icon} />
+                                <Calendar color="#0284c7" size={20} style={styles.icon} />
                                 <TextInput
                                     placeholder="Data de nascimento"
                                     style={styles.input}
@@ -357,7 +356,7 @@ export default function EditPerfil() {
                                 { flex: 1 },
                                 isCampoIncompleto(phone, "00000000000") && styles.inputIncompleto
                             ]}>
-                                <Phone color="#3386BC" size={20} style={styles.icon} />
+                                <Phone color="#0284c7" size={20} style={styles.icon} />
                                 <TextInput
                                     placeholder="Telefone"
                                     style={styles.input}
@@ -369,7 +368,7 @@ export default function EditPerfil() {
                         </View>
 
                         <View style={styles.inputWrapper}>
-                            <Mail color="#3386BC" size={20} style={styles.icon} />
+                            <Mail color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="Endereço de e-mail"
                                 style={styles.input}
@@ -384,7 +383,7 @@ export default function EditPerfil() {
                             styles.inputWrapper,
                             isCampoIncompleto(cpf, "00000000000") && styles.inputIncompleto
                         ]}>
-                            <IdCard color="#3386BC" size={20} style={styles.icon} />
+                            <IdCard color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="CPF"
                                 style={styles.input}
@@ -409,8 +408,8 @@ export default function EditPerfil() {
                             ]}
                             dropDownContainerStyle={styles.dropdownContainer}
                             textStyle={{ color: "#333" }}
-                            ArrowDownIconComponent={() => <ChevronDown color="#3386BC" size={20} />}
-                            ArrowUpIconComponent={() => <ChevronUp color="#3386BC" size={20} />}
+                            ArrowDownIconComponent={() => <ChevronDown color="#0284c7" size={20} />}
+                            ArrowUpIconComponent={() => <ChevronUp color="#0284c7" size={20} />}
                             zIndex={3000}
                             zIndexInverse={1000}
                         />
@@ -419,7 +418,7 @@ export default function EditPerfil() {
                             styles.inputWrapper,
                             isCampoIncompleto(endereco, "Rua Padrão") && styles.inputIncompleto
                         ]}>
-                            <MapPin color="#3386BC" size={20} style={styles.icon} />
+                            <MapPin color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="Endereço"
                                 style={styles.input}
@@ -523,7 +522,7 @@ export default function EditPerfil() {
                             </View>
                         </View>
                     </Modal>
-                     <CustomAlert
+                    <CustomAlert
                         visible={alertConfig.visible}
                         type={alertConfig.type}
                         title={alertConfig.title}
@@ -546,15 +545,20 @@ const styles = StyleSheet.create({
         marginTop: '10%'
     },
     botaoVoltar: {
-        flexDirection: 'row',
+        width: 40,
+  
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 10
+        shadowColor: "#0284c7",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
-    textoVoltar: {
-        fontSize: 16,
-        color: '#333',
-        marginLeft: 5,
-    },
+
     headerContainer: {
         alignItems: "center",
         paddingVertical: 20,
@@ -567,13 +571,13 @@ const styles = StyleSheet.create({
         height: 100,
         borderRadius: 50,
         borderWidth: 3,
-        borderColor: "#3b82f6",
+        borderColor: "#0284c7",
     },
     editFotoButton: {
         position: "absolute",
         bottom: 0,
         right: 0,
-        backgroundColor: "#3386BC",
+        backgroundColor: "#0284c7",
         borderRadius: 20,
         padding: 8,
         borderWidth: 2,
@@ -678,12 +682,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 15,
     },
-     modalButton: {
+    modalButton: {
         padding: 12,
         borderRadius: 20,
         width: '80%',
         alignItems: 'center',
-        backgroundColor: '#2980B9',
+        backgroundColor: '#0284c7',
         shadowColor: '#000',
         shadowOpacity: 0.3,
         shadowRadius: 10,
@@ -746,7 +750,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     saveButton: {
-        backgroundColor: "#3386BC",
+        backgroundColor: "#0284c7",
     },
     deleteButton: {
         backgroundColor: 'transparent',

@@ -27,7 +27,8 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ffffff",
+         "enableJetifier": true
       },
       "edgeToEdgeEnabled": true,
       "package": "com.carloshenriqque.MindHelping",

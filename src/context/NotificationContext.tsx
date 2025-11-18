@@ -262,8 +262,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.SCHEDULING_USER(userId)}`);
 
-      // 🔥 PROTEÇÃO: Garante que response.data é um array
-      const appointments = Array.isArray(response.data) ? response.data : [];
+      let appointments = [];
+
+      if (response.data?.schedulingDetails) {
+        appointments = Array.isArray(response.data.schedulingDetails)
+          ? response.data.schedulingDetails
+          : [response.data.schedulingDetails];
+      } else if (Array.isArray(response.data)) {
+        appointments = response.data;
+      }
 
       if (appointments.length === 0) {
         console.log('[Notifications] ℹ️ Nenhuma consulta encontrada');
@@ -274,26 +281,34 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       let count = 0;
 
       for (const appointment of appointments) {
-        // Valida que o appointment tem os dados necessários
-        if (!appointment.date || !appointment.time) {
+        if (appointment.isCanceled) {
+          console.log('[Notifications] ⚠️ Consulta cancelada, pulando...');
+          continue;
+        }
+
+        if (!appointment.date || !appointment.hour) {
           console.log('[Notifications] ⚠️ Consulta sem data/hora, pulando...');
           continue;
         }
 
-        const appointmentDate = new Date(appointment.date + 'T' + appointment.time);
+        const appointmentDate = new Date(appointment.date);
 
-        // Agenda para 1 dia antes, às 18h
-        const reminderDate = new Date(appointmentDate);
-        reminderDate.setDate(reminderDate.getDate() - 1);
-        reminderDate.setHours(18, 0, 0, 0);
+        if (appointment.hour.includes(':')) {
+          const [hours, minutes] = appointment.hour.split(':');
+          appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        }
 
-        // Só agenda se a data do lembrete for no futuro
-        if (reminderDate > now) {
+        // 🔥 LEMBRETE 1: 1 dia antes às 18h
+        const oneDayBefore = new Date(appointmentDate);
+        oneDayBefore.setDate(oneDayBefore.getDate() - 1);
+        oneDayBefore.setHours(18, 0, 0, 0);
+
+        if (oneDayBefore > now && appointmentDate > now) {
           await Notifications.scheduleNotificationAsync({
-            identifier: `appointment-${appointment.id}`,
+            identifier: `appointment-1day-${appointment.id}`,
             content: {
               title: '📅 Consulta amanhã!',
-              body: `Você tem consulta${appointment.professional ? ` com ${appointment.professional}` : ''} amanhã às ${appointment.time}.`,
+              body: `Você tem consulta${appointment.nameProfessional ? ` com ${appointment.nameProfessional}` : ''} amanhã às ${appointment.hour}.`,
               sound: true,
               data: {
                 type: 'appointment-reminder',
@@ -302,18 +317,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
               },
             },
             trigger: {
-              date: reminderDate,
+              date: oneDayBefore,
               channelId: 'appointments',
             },
           });
 
           count++;
-          console.log(`[Notifications] 📅 Lembrete de consulta agendado para ${reminderDate.toLocaleString('pt-BR')}`);
+          console.log(`[Notifications] 📅 Lembrete (1 dia antes) agendado para ${oneDayBefore.toLocaleString('pt-BR')}`);
+        }
+
+        // 🔥 LEMBRETE 2: 1 hora antes da consulta
+        const oneHourBefore = new Date(appointmentDate);
+        oneHourBefore.setHours(oneHourBefore.getHours() - 1);
+
+        if (oneHourBefore > now && appointmentDate > now) {
+          await Notifications.scheduleNotificationAsync({
+            identifier: `appointment-1hour-${appointment.id}`,
+            content: {
+              title: '⏰ Consulta em 1 hora!',
+              body: `Sua consulta${appointment.nameProfessional ? ` com ${appointment.nameProfessional}` : ''} é às ${appointment.hour}. Prepare-se!`,
+              sound: true,
+              data: {
+                type: 'appointment-reminder',
+                appointmentId: appointment.id,
+                screen: '/pages/Consultas'
+              },
+            },
+            trigger: {
+              date: oneHourBefore,
+              channelId: 'appointments',
+            },
+          });
+
+          count++;
+          console.log(`[Notifications] ⏰ Lembrete (1 hora antes) agendado para ${oneHourBefore.toLocaleString('pt-BR')}`);
         }
       }
 
       console.log(`[Notifications] ✅ ${count} lembretes de consultas agendados`);
     } catch (error: any) {
+      if (error.response?.status === 404) {
+        console.log('[Notifications] ℹ️ Nenhuma consulta agendada no momento');
+        return;
+      }
+
       if (error.response) {
         console.error('[Notifications] ❌ Erro ao verificar consultas - Status:', error.response.status);
       } else {
@@ -327,8 +374,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.GOAL_USER(userId)}`);
 
-      // 🔥 PROTEÇÃO: Garante que response.data é um array
-      const goals = Array.isArray(response.data) ? response.data : [];
+      // 🔥 FIX: Extrai o array de goals do objeto de resposta
+      const goals = Array.isArray(response.data?.goals)
+        ? response.data.goals
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
 
       if (goals.length === 0) {
         console.log('[Notifications] ℹ️ Nenhuma meta encontrada');
@@ -339,15 +390,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       let count = 0;
 
       for (const goal of goals) {
-        // Só notifica metas não concluídas e com deadline
-        if (goal.completed || goal.status === 'completed' || !goal.deadline) {
+        // Adaptar para a estrutura real da API
+        // A API não retorna 'completed', 'status' ou 'deadline'
+        // Usa 'isExecuted', 'isExpire' e calcula deadline com 'numberDays'
+
+        if (goal.isExecuted || goal.isExpire) {
           continue;
         }
 
-        const goalDeadline = new Date(goal.deadline);
+        // Calcula o deadline baseado na data de criação + numberDays
+        const createdAt = new Date(goal.createdAt);
+        const goalDeadline = new Date(createdAt);
+        goalDeadline.setDate(goalDeadline.getDate() + goal.numberDays);
+
         const reminderDate = new Date(goalDeadline);
         reminderDate.setDate(reminderDate.getDate() - 1);
-        reminderDate.setHours(19, 0, 0, 0); // 19h do dia anterior
+        reminderDate.setHours(19, 0, 0, 0);
 
         // Só agenda se a meta ainda não expirou e o lembrete é no futuro
         if (reminderDate > now && goalDeadline > now) {
@@ -355,7 +413,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             identifier: `goal-${goal.id}`,
             content: {
               title: '🎯 Lembrete de Meta',
-              body: `A meta "${goal.title}" vence amanhã! Já executou?`,
+              body: `A meta "${goal.description}" vence amanhã! Já executou?`,
               sound: true,
               data: {
                 type: 'goal-reminder',
@@ -370,7 +428,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
           });
 
           count++;
-          console.log(`[Notifications] 🎯 Lembrete de meta agendado para ${reminderDate.toLocaleString('pt-BR')}`);
+          console.log(`[Notifications] 🎯 Lembrete agendado para ${reminderDate.toLocaleString('pt-BR')}`);
         }
       }
 
@@ -383,56 +441,51 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     }
   };
-
   // Agenda relatório mensal (último dia de cada mês às 20h)
   // Agenda relatório mensal (último dia de cada mês às 20h)
-const scheduleMonthlyReport = async () => {
-  try {
-    // Verifica se já existe agendamento para evitar duplicar
-    const existing = await Notifications.getAllScheduledNotificationsAsync();
-    const alreadyScheduled = existing.some(n => n.identifier === 'monthly-report');
+  const scheduleMonthlyReport = async () => {
+    try {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
 
-    if (alreadyScheduled) {
-      console.log('[Notifications] ⏳ Relatório mensal já está agendado.');
-      return;
+      // Define o último dia do mês atual às 20h
+      let lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+      lastDayOfMonth.setHours(20, 0, 0, 0);
+
+      // Se já passou, agenda para o próximo mês
+      if (lastDayOfMonth <= now) {
+        const nextMonth = currentMonth + 1;
+        const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
+        const nextMonthIndex = nextMonth > 11 ? 0 : nextMonth;
+
+        lastDayOfMonth = new Date(nextYear, nextMonthIndex + 1, 0, 20, 0, 0, 0);
+      }
+
+      // 🔥 FIX: Só agenda se for no futuro (evita agendar no passado)
+      if (lastDayOfMonth > now) {
+        await Notifications.scheduleNotificationAsync({
+          identifier: 'monthly-report',
+          content: {
+            title: '📊 Relatório Mensal Disponível!',
+            body: 'Seu relatório mensal de humor está pronto. Veja como foi seu mês!',
+            sound: true,
+            data: { type: 'monthly-report', screen: '/pages/Relatorios' },
+          },
+          trigger: {
+            date: lastDayOfMonth,
+            channelId: 'monthly-report',
+          },
+        });
+
+        console.log(`[Notifications] 📊 Relatório mensal agendado para ${lastDayOfMonth.toLocaleString('pt-BR')}`);
+      } else {
+        console.log('[Notifications] ⏳ Relatório mensal já passou este mês, aguardando próximo mês');
+      }
+    } catch (error) {
+      console.error('[Notifications] ❌ Erro ao agendar relatório mensal:', error);
     }
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    // Define o último dia do mês atual às 20h
-    let lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
-    lastDayOfMonth.setHours(20, 0, 0, 0);
-
-    // Se já passou (ou está muito próximo), agenda para o próximo mês
-    if (lastDayOfMonth.getTime() - now.getTime() <= 3600000) {
-      const nextMonth = currentMonth + 1;
-      const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
-      const nextMonthIndex = nextMonth > 11 ? 0 : nextMonth;
-
-      lastDayOfMonth = new Date(nextYear, nextMonthIndex + 1, 0, 20, 0, 0, 0);
-    }
-
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'monthly-report',
-      content: {
-        title: '📊 Relatório Mensal Disponível!',
-        body: 'Seu relatório mensal de humor está pronto. Veja como foi seu mês!',
-        sound: true,
-        data: { type: 'monthly-report', screen: '/pages/Relatorios' },
-      },
-      trigger: {
-        date: lastDayOfMonth,
-        channelId: 'monthly-report',
-      },
-    });
-
-    console.log(`[Notifications] 📊 Relatório mensal agendado para ${lastDayOfMonth.toLocaleString('pt-BR')}`);
-  } catch (error) {
-    console.error('[Notifications] ❌ Erro ao agendar relatório mensal:', error);
-  }
-};
+  };
 
 
   const updateSetting = async (key: keyof NotificationSettings, value: boolean) => {

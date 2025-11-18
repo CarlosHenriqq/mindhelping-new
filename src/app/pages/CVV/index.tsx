@@ -180,7 +180,7 @@ const Call = () => {
       <View style={styles.header}>
         <TouchableOpacity onPress={handleGoBack} style={styles.botaoVoltar}>
           <ChevronLeft color="#333" size={28} />
-          <Text style={styles.textoVoltar}>Voltar</Text>
+          
         </TouchableOpacity>
       </View>
 
@@ -231,10 +231,19 @@ const styles = StyleSheet.create({
     left: 15,
     zIndex: 10,
   },
-  botaoVoltar: {
-    flexDirection: 'row',
+   botaoVoltar: {
+    width: 40,
+    height: 40,
+    
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
     alignItems: 'center',
-
+    shadowColor: "#0284c7",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   textoVoltar: {
     fontSize: 16,

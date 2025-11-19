@@ -12,7 +12,7 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/52e92494-fab5-470b-bdb4-f8fa6021defb"
+      "url": "https://u.expo.dev/5bf5c476-38cd-4173-8256-2072eb6e5c89"
     },
     "ios": {
       "supportsTablet": true,
@@ -28,7 +28,7 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff",
-         "enableJetifier": true
+        "enableJetifier": true
       },
       "edgeToEdgeEnabled": true,
       "package": "com.carloshenriqque.MindHelping",
@@ -66,7 +66,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5bf5c476-38cd-4173-8256-2072eb6e5c89"
+        "projectId": "52e92494-fab5-470b-bdb4-f8fa6021defb"
       }
     }
   }

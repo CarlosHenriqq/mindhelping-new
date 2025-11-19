@@ -243,11 +243,22 @@ export default function AgendarConsulta() {
         setSchedules([]);
         setVagas([]);
         setMarkedDates({});
+        setSelectedDate(null);  
+        setHorarios([]);        
+        setHourSelected(null);  
+        setSelectedHourlyMap(null); 
       }
 
       console.error("❌ Erro:", error);
     }
   }
+  // Adicione este useEffect após os outros useEffects
+useEffect(() => {
+  // Quando o modal fecha e não há data selecionada, recarrega as agendas
+  if (!modalVisible && !selectedDate && schedules.length === 0) {
+    fetchSchedules();
+  }
+}, [modalVisible]);
 
   function formatDateBR(dateString: string) {
     const [year, month, day] = dateString.split("-");
@@ -298,7 +309,7 @@ export default function AgendarConsulta() {
             {professional ? (
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                  
+
                   <View style={styles.profInfo}>
                     <Text style={styles.profName}>{professional.name}</Text>
                     <Text style={styles.profTitle}>Psicólogo(a)</Text>
@@ -431,9 +442,9 @@ export default function AgendarConsulta() {
               <View style={styles.modalIconContainer}>
                 <CalendarIcon size={32} color="#0284c7" />
               </View>
-              
+
               <Text style={styles.modalTitle}>Confirmar Agendamento</Text>
-              
+
               <View style={styles.modalInfoBox}>
                 <View style={styles.modalInfoRow}>
                   <CalendarIcon size={18} color="#64748b" />

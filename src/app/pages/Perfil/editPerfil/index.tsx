@@ -53,16 +53,18 @@ export default function EditPerfil() {
 
                 setName(data.name);
                 setBirthDate(new Date(data.birthDate).toLocaleDateString());
-                setPhone(data.phone || "00000000000");
+                
+                // Converte valores padrão para vazio
+                setPhone(data.phone === "00000000000" ? "" : (data.phone || ""));
                 setEmail(data.email);
-                setCPF(data.cpf || "00000000000");
-                setGender(data.gender || "other");
-                setEndereco(data.address?.street || "Rua Padrão");
-                setNumero(data.address?.number?.toString() || "0");
-                setBairro(data.address?.neighborhood || "Centro");
-                setCidade(data.address?.city || "São Paulo");
-                setCep(data.address?.cep || "00000000");
-                setUf(data.address?.uf || "SP");
+                setCPF(data.cpf === "00000000000" ? "" : (data.cpf || ""));
+                setGender(data.gender === "other" ? "" : (data.gender || ""));
+                setEndereco(data.address?.street === "Rua Padrão" ? "" : (data.address?.street || ""));
+                setNumero(data.address?.number?.toString() === "0" ? "" : (data.address?.number?.toString() || ""));
+                setBairro(data.address?.neighborhood === "Centro" ? "" : (data.address?.neighborhood || ""));
+                setCidade(data.address?.city === "São Paulo" ? "" : (data.address?.city || ""));
+                setCep(data.address?.cep === "00000000" ? "" : (data.address?.cep || ""));
+                setUf(data.address?.uf === "SP" ? "" : (data.address?.uf || ""));
             } catch (error: any) {
                 console.error("Erro ao buscar usuário:", error.response || error.message);
             } finally {
@@ -96,23 +98,29 @@ export default function EditPerfil() {
         try {
             const payload = {
                 name,
-                cpf,
-                address: endereco,
-                neighborhood: bairro,
+                cpf: cpf || "00000000000",
+                address: endereco || "Rua Padrão",
+                neighborhood: bairro || "Centro",
                 number: parseInt(numero) || 0,
                 complement: '',
-                cep,
-                city: cidade,
-                uf: uf,
-                phone,
+                cep: cep || "00000000",
+                city: cidade || "São Paulo",
+                uf: uf || "SP",
+                phone: phone || "00000000000",
                 email,
-                gender,
+                gender: gender || "other",
             };
 
             const response = await axios.patch(
                 `${API_BASE_URL}${ENDPOINTS.USER(userId)}`,
                 payload
             );
+
+            // Atualizar o userData com os novos valores
+            setUserData({
+                ...userData,
+                ...response.data.user
+            });
 
             console.log('Perfil atualizado:', response.data);
             showSuccess('Sucesso', 'Perfil atualizado com sucesso!');
@@ -235,8 +243,7 @@ export default function EditPerfil() {
         // Verifica Cidade (padrão: "São Paulo")
         if (!cidade || cidade.trim() === "" || cidade === "São Paulo") return true;
 
-        // Verifica UF (padrão: "SP")
-        if (!uf || uf.trim() === "" || uf === "SP") return true;
+        
 
         return false;
     };
@@ -325,7 +332,7 @@ export default function EditPerfil() {
 
                         <View style={styles.locationContainer}>
                             <MapPin size={16} color={"#0284c7"} />
-                            <Text style={styles.locationText}>Birigui - São Paulo</Text>
+                            <Text style={styles.locationText}>{cidade} - {uf || 'SP'}</Text>
                         </View>
                     </View>
 
@@ -359,8 +366,9 @@ export default function EditPerfil() {
                                 <Phone color="#0284c7" size={20} style={styles.icon} />
                                 <TextInput
                                     placeholder="Telefone"
+                                    placeholderTextColor="#9ca3af"
                                     style={styles.input}
-                                    value={phone}
+                                    value={phone === "00000000000" ? "" : phone}
                                     onChangeText={setPhone}
                                     keyboardType="phone-pad"
                                 />
@@ -386,8 +394,9 @@ export default function EditPerfil() {
                             <IdCard color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
                                 placeholder="CPF"
+                                placeholderTextColor="#9ca3af"
                                 style={styles.input}
-                                value={cpf}
+                                value={cpf === "00000000000" ? "" : cpf}
                                 onChangeText={setCPF}
                                 keyboardType="numeric"
                             />
@@ -395,7 +404,7 @@ export default function EditPerfil() {
 
                         <DropDownPicker
                             open={open}
-                            value={gender}
+                            value={gender || null}
                             items={genderItem}
                             setOpen={setOpen}
                             setValue={setGender}
@@ -408,21 +417,46 @@ export default function EditPerfil() {
                             ]}
                             dropDownContainerStyle={styles.dropdownContainer}
                             textStyle={{ color: "#333" }}
+                            placeholderStyle={{ color: "#9ca3af" }}
                             ArrowDownIconComponent={() => <ChevronDown color="#0284c7" size={20} />}
                             ArrowUpIconComponent={() => <ChevronUp color="#0284c7" size={20} />}
                             zIndex={3000}
                             zIndexInverse={1000}
                         />
 
+                        {/* CEP AGORA VEM PRIMEIRO */}
+                        <View style={[
+                            styles.inputWrapper,
+                            isCampoIncompleto(cep, "00000000") && styles.inputIncompleto
+                        ]}>
+                            <MapPin color="#0284c7" size={20} style={styles.icon} />
+                            <TextInput
+                                placeholder="CEP"
+                                placeholderTextColor="#9ca3af"
+                                style={styles.input}
+                                value={cep === "00000000" ? "" : cep}
+                                onChangeText={(text) => {
+                                    setCep(text);
+                                    if (text.replace(/\D/g, '').length === 8) {
+                                        buscarEnderecoPorCEP(text);
+                                    }
+                                }}
+                                keyboardType="numeric"
+                                maxLength={9}
+                            />
+                        </View>
+
+                        {/* ENDEREÇO VEM DEPOIS DO CEP */}
                         <View style={[
                             styles.inputWrapper,
                             isCampoIncompleto(endereco, "Rua Padrão") && styles.inputIncompleto
                         ]}>
                             <MapPin color="#0284c7" size={20} style={styles.icon} />
                             <TextInput
-                                placeholder="Endereço"
+                                placeholder="Endereço (Rua, Avenida, etc)"
+                                placeholderTextColor="#9ca3af"
                                 style={styles.input}
-                                value={endereco}
+                                value={endereco === "Rua Padrão" ? "" : endereco}
                                 onChangeText={setEndereco}
                             />
                         </View>
@@ -435,8 +469,9 @@ export default function EditPerfil() {
                             ]}>
                                 <TextInput
                                     placeholder="Bairro"
+                                    placeholderTextColor="#9ca3af"
                                     style={styles.input}
-                                    value={bairro}
+                                    value={bairro === "Centro" ? "" : bairro}
                                     onChangeText={setBairro}
                                 />
                             </View>
@@ -447,46 +482,26 @@ export default function EditPerfil() {
                             ]}>
                                 <TextInput
                                     placeholder="Nº"
+                                    placeholderTextColor="#9ca3af"
                                     style={styles.input}
-                                    value={numero}
+                                    value={numero === "0" ? "" : numero}
                                     onChangeText={setNumero}
                                     keyboardType="numeric"
                                 />
                             </View>
                         </View>
 
-                        <View style={styles.row}>
-                            <View style={[
-                                styles.inputWrapper,
-                                { flex: 1 },
-                                isCampoIncompleto(cep, "00000000") && styles.inputIncompleto
-                            ]}>
-                                <TextInput
-                                    placeholder="CEP"
-                                    style={styles.input}
-                                    value={cep}
-                                    onChangeText={(text) => {
-                                        setCep(text);
-                                        if (text.replace(/\D/g, '').length === 8) {
-                                            buscarEnderecoPorCEP(text);
-                                        }
-                                    }}
-                                    keyboardType="numeric"
-                                    maxLength={9}
-                                />
-                            </View>
-                            <View style={[
-                                styles.inputWrapper,
-                                { flex: 1 },
-                                isCampoIncompleto(cidade, "São Paulo") && styles.inputIncompleto
-                            ]}>
-                                <TextInput
-                                    placeholder="Cidade"
-                                    style={styles.input}
-                                    value={cidade}
-                                    onChangeText={setCidade}
-                                />
-                            </View>
+                        <View style={[
+                            styles.inputWrapper,
+                            isCampoIncompleto(cidade, "São Paulo") && styles.inputIncompleto
+                        ]}>
+                            <TextInput
+                                placeholder="Cidade"
+                                placeholderTextColor="#9ca3af"
+                                style={styles.input}
+                                value={cidade === "São Paulo" ? "" : cidade}
+                                onChangeText={setCidade}
+                            />
                         </View>
 
                         <View style={styles.buttonContainer}>
@@ -546,7 +561,6 @@ const styles = StyleSheet.create({
     },
     botaoVoltar: {
         width: 40,
-  
         height: 40,
         borderRadius: 12,
         backgroundColor: '#fff',

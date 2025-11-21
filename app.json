@@ -66,8 +66,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "52e92494-fab5-470b-bdb4-f8fa6021defb"
+        "projectId": "5bf5c476-38cd-4173-8256-2072eb6e5c89"
       }
-    }
+    },
+    "owner": "carloshenriqque"
   }
 }

@@ -270,7 +270,7 @@ useEffect(() => {
     vagas.forEach((vaga) => {
       marks[vaga.date] = {
         customStyles: {
-          container: { backgroundColor: '#0ea5e9', borderRadius: 12 },
+          container: { backgroundColor: '#10c519ff', borderRadius: 12 },
           text: { color: "white", fontWeight: "bold" },
         },
       };

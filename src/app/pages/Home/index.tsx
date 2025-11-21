@@ -9,7 +9,7 @@ import { Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, To
 import { ScrollView, TextInput } from 'react-native-gesture-handler';
 import Carousel from 'react-native-reanimated-carousel';
 import FotoPerfil from '../../../../assets/mascote.svg';
-import { CustomAlert, useCustomAlert } from '../../../components/CustomAlert';
+import { CustomAlert, useCustomAlert, } from '../../../components/CustomAlert';
 import { API_BASE_URL, ENDPOINTS } from '../../../config/api';
 import { useUser } from '../../../context/UserContext';
 const width = Dimensions.get('window').width;
@@ -64,7 +64,7 @@ export default function Home() {
         { text: "TEDIO", image: require('../../../../assets/images/slide/tedio.png') },
         { text: "NÃO_SEI_DIZER", image: require('../../../../assets/images/slide/indeciso.png') },
     ]);
-    const { alertConfig, showSuccess, showError, showWarning, hideAlert } = useCustomAlert();
+    const { alertConfig, showSuccess, showError, showWarning, hideAlert, showConfirm } = useCustomAlert();
     const [userName, setUserName] = useState('');
     const { userId, loadingUser } = useUser();
 
@@ -242,6 +242,23 @@ export default function Home() {
             console.log("Erro ao carregar último sentimento:", error);
         }
     };
+
+    const confirmarCancelamento = () => {
+        showConfirm(
+            "Confirmar Cancelamento",
+            "Tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita.",
+            () => {
+                hideAlert();
+                cancelAgendamento();
+            },
+            () => {
+                hideAlert();
+            },
+            'warning',
+            'Sim, Cancelar',
+            'Não'
+        );
+    };
     const cancelAgendamento = async () => {
         if (!nextAppointment || !nextAppointment.hourlyId) {
             showError('Erro', 'Não foi possível identificar o agendamento');
@@ -397,7 +414,7 @@ export default function Home() {
                                                     marginTop: 10,
                                                     opacity: nextAppointment.isCanceled ? 0.6 : 1
                                                 }}
-                                                onPress={cancelAgendamento}
+                                                onPress={confirmarCancelamento}
                                                 disabled={nextAppointment.isCanceled}
                                             >
                                                 <Text style={{
@@ -485,6 +502,11 @@ export default function Home() {
                     title={alertConfig.title}
                     message={alertConfig.message}
                     onClose={hideAlert}
+                    showConfirm={alertConfig.showConfirm}
+                    confirmText={alertConfig.confirmText}
+                    cancelText={alertConfig.cancelText}
+                    onConfirm={alertConfig.onConfirm}
+                    onCancel={alertConfig.onCancel}
                 />
             </LinearGradient>
         </View>
@@ -601,7 +623,7 @@ const styles = StyleSheet.create({
     },
     dadosConsulta: {
         flexDirection: 'row',
-        gap:130,
+        gap: 130,
         marginBottom: 10,
     },
     maps: {

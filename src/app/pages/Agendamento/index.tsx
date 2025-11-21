@@ -1,9 +1,10 @@
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Filter, Mail, MapPin, Phone, Search, X } from "lucide-react-native";
+import { AlertCircle, Filter, Mail, MapPin, Phone, Search, X } from "lucide-react-native";
 import React, { useState } from "react";
 import {
+  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -34,8 +35,65 @@ export default function Profissional() {
   const [showModal, setShowModal] = useState(false);
   const [searchCity, setSearchCity] = useState('');
   const [filterActive, setFilterActive] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+  const [perfilIncompleto, setPerfilIncompleto] = useState(false);
   const router = useRouter();
   const { userId } = useUser();
+
+  // Função para buscar dados do usuário
+  async function buscarDadosUsuario() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.USER(userId || '')}`);
+      const data = response.data.user;
+      setUserData(data);
+      
+      // Verificar se o perfil está incompleto
+      const incompleto = verificarPerfilIncompleto(data);
+      setPerfilIncompleto(incompleto);
+    } catch (error) {
+      console.log("Erro ao buscar dados do usuário:", error);
+    }
+  }
+
+  // Função para verificar se o perfil está incompleto
+  function verificarPerfilIncompleto(data: any) {
+    if (!data) return false;
+
+    const cpf = data.cpf || "";
+    const phone = data.phone || "";
+    const gender = data.gender || "";
+    const endereco = data.address?.street || "";
+    const bairro = data.address?.neighborhood || "";
+    const numero = data.address?.number?.toString() || "";
+    const cep = data.address?.cep || "";
+    const cidade = data.address?.city || "";
+
+    // Verifica CPF (padrão: "00000000000")
+    if (!cpf || cpf.trim() === "" || cpf === "00000000000") return true;
+
+    // Verifica Phone (padrão: "00000000000")
+    if (!phone || phone.trim() === "" || phone === "00000000000") return true;
+
+    // Verifica Gender (padrão: "other")
+    if (!gender || gender.trim() === "" || gender === "other") return true;
+
+    // Verifica Endereço (padrão: "Rua Padrão")
+    if (!endereco || endereco.trim() === "" || endereco === "Rua Padrão") return true;
+
+    // Verifica Bairro (padrão: "Centro")
+    if (!bairro || bairro.trim() === "" || bairro === "Centro") return true;
+
+    // Verifica Número (padrão: 0 ou "0")
+    if (!numero || numero === "0" || numero.trim() === "") return true;
+
+    // Verifica CEP (padrão: "00000000")
+    if (!cep || cep.trim() === "" || cep === "00000000") return true;
+
+    // Verifica Cidade (padrão: "São Paulo")
+    if (!cidade || cidade.trim() === "" || cidade === "São Paulo") return true;
+
+    return false;
+  }
 
   async function buscarProfissional() {
     try {
@@ -53,10 +111,34 @@ export default function Profissional() {
   useFocusEffect(
     React.useCallback(() => {
       buscarProfissional();
+      buscarDadosUsuario();
     }, [])
   );
 
   function handleAgendar(id: string) {
+    // Verificar se o perfil está incompleto
+    if (perfilIncompleto) {
+      Alert.alert(
+        "Perfil Incompleto",
+        "Por favor, complete seu perfil antes de agendar uma consulta.",
+        [
+          {
+            text: "Cancelar",
+            style: "cancel"
+          },
+          {
+            text: "Completar Perfil",
+            onPress: () => router.push({
+              pathname: "/pages/Perfil/editPerfil",
+              params: { returnTo: '/pages/Agendamento' }
+            })
+          }
+        ]
+      );
+      return;
+    }
+
+    // Se o perfil estiver completo, segue para agendamento
     router.push({
       pathname: "/pages/Agendamento/Agendar",
       params: {
@@ -104,6 +186,25 @@ export default function Profissional() {
             {filteredProfessionals.length} {filteredProfessionals.length === 1 ? 'profissional' : 'profissionais'}
           </Text>
         </View>
+
+        {/* Alerta de perfil incompleto */}
+        {perfilIncompleto && (
+          <TouchableOpacity 
+            style={styles.warningBanner}
+            onPress={() => router.push({
+              pathname: "/pages/Perfil/editPerfil",
+              params: { returnTo: '/pages/Agendamento' }
+            })}
+          >
+            <AlertCircle size={20} color="#f59e0b" />
+            <View style={styles.warningTextContainer}>
+              <Text style={styles.warningTitle}>Perfil Incompleto</Text>
+              <Text style={styles.warningText}>
+                Complete seu perfil para agendar consultas
+              </Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* Barra de busca aprimorada */}
         <View style={styles.searchContainer}>
@@ -275,6 +376,32 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 15,
     color: '#64748b',
+    fontWeight: '500',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+  },
+  warningTextContainer: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#92400e',
+    marginBottom: 2,
+  },
+  warningText: {
+    fontSize: 13,
+    color: '#92400e',
     fontWeight: '500',
   },
   searchContainer: {

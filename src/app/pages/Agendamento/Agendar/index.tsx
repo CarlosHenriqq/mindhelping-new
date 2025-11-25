@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import axios from "axios";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Calendar as CalendarIcon, ChevronLeft, Clock, Mail, MapPin, Phone } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Modal,
@@ -17,6 +18,7 @@ import { Calendar, DateObject } from "react-native-calendars";
 import { CustomAlert, useCustomAlert } from "../../../../components/CustomAlert";
 import { API_BASE_URL, ENDPOINTS } from "../../../../config/api";
 import { useUser } from "../../../../context/UserContext";
+
 
 export interface Professional {
   name: string;
@@ -47,6 +49,7 @@ export default function AgendarConsulta() {
   const [modalVisible, setModalVisible] = useState(false);
   const [hourSelected, setHourSelected] = useState<string | null>(null);
   const [selectedHourlyMap, setSelectedHourlyMap] = useState<Map<string, any> | null>(null);
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
 
   useEffect(() => {
     async function fetchProf() {
@@ -60,9 +63,23 @@ export default function AgendarConsulta() {
       }
     }
     if (id) fetchProf();
+  
   }, [id]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        fetchSchedules();
+      }
+    }, [id])
+  );
+
   async function fetchSchedules() {
+    if (!id) {
+      console.log("⚠️ ID do profissional não disponível ainda");
+      return;
+    }
+
     try {
       const url = `${API_BASE_URL}${ENDPOINTS.SCHEDULES_GET(id)}`;
       console.log("🔗 URL chamada schedules:", url);
@@ -106,35 +123,56 @@ export default function AgendarConsulta() {
       });
       setMarkedDates(marks);
     } catch (error: any) {
-      console.log("❌ Erro ao buscar schedules:", error);
+      console.log("❌ Erro ao buscar schedules:", error.message);
+      console.log("📍 Status do erro:", error.response?.status);
+      console.log("📍 URL que deu erro:", error.config?.url);
+      
       if (error.response?.status === 404) {
-        console.log("⚠️ Endpoint não encontrado ou sem agendas para este profissional");
+        console.log("⚠️ Endpoint não encontrado (404) - Verifique a rota no backend");
+        console.log("⚠️ URL esperada:", `${API_BASE_URL}${ENDPOINTS.SCHEDULES_GET(id)}`);
         setSchedules([]);
         setVagas([]);
         setMarkedDates({});
+      } else if (error.response?.status === 500) {
+        console.log("⚠️ Erro no servidor (500)");
+      } else {
+        console.log("⚠️ Outro erro:", error.response?.data);
       }
     }
   }
 
   useEffect(() => {
     if (!id) return;
+    
+    console.log("🔄 ID mudou, resetando estados e buscando schedules...");
+    
     setSchedules([]);
     setVagas([]);
     setMarkedDates({});
     setSelectedDate(null);
     setHorarios([]);
+    
     fetchSchedules();
   }, [id]);
 
   async function onDayPress(day: DateObject) {
-    setSelectedDate(day.dateString);
+    const dateString = day.dateString;
+    setSelectedDate(dateString);
+    
+    // Limpa os horários IMEDIATAMENTE
     setHorarios([]);
+    setHourSelected(null);
+    setSelectedHourlyMap(null);
+    setLoadingHorarios(true);
 
+    // Busca o schedule do dia selecionado
     const schedule = schedules.find((sch: any) =>
-      sch.initialTime?.startsWith(day.dateString)
+      sch.initialTime?.startsWith(dateString)
     );
+    
     if (!schedule) {
-      console.log("⚠️ Nenhuma agenda para este dia:", day.dateString);
+      console.log("⚠️ Nenhuma agenda para este dia:", dateString);
+      setLoadingHorarios(false);
       return;
     }
 
@@ -144,20 +182,38 @@ export default function AgendarConsulta() {
 
       const response = await axios.get(url);
       const hourlies = response.data.hourlies;
+      
+      if (!hourlies || hourlies.length === 0) {
+        console.log("⚠️ Nenhum horário cadastrado para este dia");
+        setHorarios([]);
+        setLoadingHorarios(false);
+        return;
+      }
+
       const availableHourlies = hourlies.filter((h: any) => !h.isOcuped);
+      
+      if (availableHourlies.length === 0) {
+        console.log("⚠️ Todos os horários estão ocupados");
+        setHorarios([]);
+        setLoadingHorarios(false);
+        return;
+      }
 
       const hourlyMap = new Map(
         availableHourlies.map((h: any) => [h.hour, h])
       );
 
       setSelectedHourlyMap(hourlyMap);
-
+      
       const availableHours = availableHourlies.map((h: any) => h.hour);
       setHorarios(availableHours);
 
-      console.log("✅ Hourlies disponíveis:", availableHourlies);
+      console.log("✅ Horários carregados:", availableHours);
     } catch (error) {
-      console.log("Erro ao buscar horários:", error);
+      console.log("❌ Erro ao buscar horários:", error);
+      setHorarios([]);
+    } finally {
+      setLoadingHorarios(false);
     }
   }
 
@@ -252,31 +308,18 @@ export default function AgendarConsulta() {
       console.error("❌ Erro:", error);
     }
   }
-  // Adicione este useEffect após os outros useEffects
-useEffect(() => {
-  // Quando o modal fecha e não há data selecionada, recarrega as agendas
-  if (!modalVisible && !selectedDate && schedules.length === 0) {
-    fetchSchedules();
-  }
-}, [modalVisible]);
+ 
+  useEffect(() => {
+    // Quando o modal fecha e não há data selecionada, recarrega as agendas
+    if (!modalVisible && !selectedDate && schedules.length === 0) {
+      fetchSchedules();
+    }
+  }, [modalVisible]);
 
   function formatDateBR(dateString: string) {
     const [year, month, day] = dateString.split("-");
     return `${day}/${month}/${year}`;
   }
-
-  useEffect(() => {
-    const marks: any = {};
-    vagas.forEach((vaga) => {
-      marks[vaga.date] = {
-        customStyles: {
-          container: { backgroundColor: '#10c519ff', borderRadius: 12 },
-          text: { color: "white", fontWeight: "bold" },
-        },
-      };
-    });
-    setMarkedDates(marks);
-  }, [vagas]);
 
   const meses = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -309,7 +352,6 @@ useEffect(() => {
             {professional ? (
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-
                   <View style={styles.profInfo}>
                     <Text style={styles.profName}>{professional.name}</Text>
                     <Text style={styles.profTitle}>Psicólogo(a)</Text>
@@ -399,7 +441,11 @@ useEffect(() => {
                     </Text>
                   </View>
 
-                  {horarios.length > 0 ? (
+                  {loadingHorarios ? (
+                    <View style={styles.noHorariosContainer}>
+                      <Text style={styles.noHorariosText}>Carregando horários...</Text>
+                    </View>
+                  ) : horarios.length > 0 ? (
                     <FlatList
                       scrollEnabled={false}
                       data={horarios}

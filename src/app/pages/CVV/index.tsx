@@ -19,7 +19,6 @@ import { useUser } from '../../../context/UserContext';
 const Call = () => {
   const { userId } = useUser();
   const callStartTime = useRef<Date | null>(null);
-  const backgroundTime = useRef<Date | null>(null); // ← NOVO: Marca quando foi pro background
   const appState = useRef(AppState.currentState);
   const [isCallInProgress, setIsCallInProgress] = useState(false);
 
@@ -30,32 +29,32 @@ const Call = () => {
 
       // Se o app foi pro BACKGROUND (ligação realmente começou)
       if (nextAppState === 'background' && isCallInProgress) {
-        backgroundTime.current = new Date(); // ← MARCA O TEMPO REAL DA LIGAÇÃO
+        callStartTime.current = new Date(); // ← MARCA O TEMPO REAL DA LIGAÇÃO
         console.log('[CVV] 📴 App foi pro BACKGROUND (usuário está em ligação)');
-        console.log(`[CVV] 🕐 Início REAL da ligação: ${backgroundTime.current.toLocaleTimeString('pt-BR')}`);
+        console.log('[CVV] 📞 Ligação iniciada');
+        console.log(`[CVV] 🕐 Início REAL da ligação: ${callStartTime.current.toLocaleTimeString('pt-BR')}`);
       }
 
-      // Se o app estava no BACKGROUND e voltou pro foreground
-      if (appState.current === 'background' && nextAppState === 'active') {
-        console.log('[CVV] 📱 App voltou do BACKGROUND (ligação real)');
+      // Se o app estava no BACKGROUND e voltou pro foreground (apenas iOS)
+      if (Platform.OS === 'ios' && appState.current === 'background' && nextAppState === 'active') {
+        console.log('[CVV] 📱 App voltou do BACKGROUND (ligação real - iOS)');
 
         // Se havia uma ligação em andamento E temos o tempo do background
-        if (isCallInProgress && backgroundTime.current) {
+        if (isCallInProgress && callStartTime.current) {
           const endTime = new Date();
           const durationInSeconds = Math.floor(
-            (endTime.getTime() - backgroundTime.current.getTime()) / 1000
+            (endTime.getTime() - callStartTime.current.getTime()) / 1000
           );
 
           console.log('[CVV] 📞 Ligação finalizada');
           console.log(`[CVV] ⏱️ Duração REAL estimada: ${durationInSeconds}s`);
 
           // Usa o tempo do background como início da ligação
-          saveCallRecord(backgroundTime.current, endTime, durationInSeconds);
+          saveCallRecord(callStartTime.current, endTime, durationInSeconds);
 
           // Reseta o estado
           setIsCallInProgress(false);
           callStartTime.current = null;
-          backgroundTime.current = null;
         }
       }
 
@@ -116,6 +115,30 @@ const Call = () => {
     }
   }
 
+  // Função para encerrar ligação manualmente (Android)
+  function handleEndCall() {
+    if (!isCallInProgress || !callStartTime.current) {
+      return;
+    }
+
+    const endTime = new Date();
+    
+    // Calcula duração desde o início (quando apertou o botão)
+    const durationInSeconds = Math.floor(
+      (endTime.getTime() - callStartTime.current.getTime()) / 1000
+    );
+
+    console.log('[CVV] 📞 Ligação encerrada manualmente (Android)');
+    console.log(`[CVV] ⏱️ Duração: ${durationInSeconds}s`);
+
+    // Salva o registro
+    saveCallRecord(callStartTime.current, endTime, durationInSeconds);
+
+    // Reseta o estado
+    setIsCallInProgress(false);
+    callStartTime.current = null;
+  }
+
   // Função para realizar a ligação
   async function makePhoneCall() {
     const phoneNumber = '188'; // CVV
@@ -128,15 +151,9 @@ const Call = () => {
       const supported = await Linking.canOpenURL(phoneURL);
 
       if (supported) {
-        // Aguarda um pouquinho antes de marcar o início
-        // Para evitar que o AppState dispare antes do discador abrir
-        setTimeout(() => {
-          callStartTime.current = new Date();
-          setIsCallInProgress(true);
-
-          console.log('[CVV] 📞 Ligação iniciada');
-          console.log(`[CVV] 🕐 Horário: ${callStartTime.current.toLocaleString('pt-BR')}`);
-        }, 500);
+        // Marca que a tentativa de ligação foi iniciada
+        setIsCallInProgress(true);
+        console.log('[CVV] 🚀 Tentativa de ligação iniciada (aguardando background)');
 
         await Linking.openURL(phoneURL);
 
@@ -202,15 +219,18 @@ const Call = () => {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.containerCall, isCallInProgress && styles.containerCallDisabled]}
-          onPress={makePhoneCall}
-          disabled={isCallInProgress}
+          style={[
+            styles.containerCall,
+            isCallInProgress && styles.containerCallActive
+          ]}
+          onPress={isCallInProgress ? handleEndCall : makePhoneCall}
         >
           <Phone color={'white'} size={24} />
           <Text style={styles.callButtonText}>
-            {isCallInProgress ? 'LIGAÇÃO EM ANDAMENTO...' : 'APERTE AQUI PARA LIGAR'}
+            {isCallInProgress ? 'ENCERRAR LIGAÇÃO' : 'APERTE AQUI PARA LIGAR'}
           </Text>
         </TouchableOpacity>
+
         <Text style={styles.availabilityText}>Ligações disponíveis 24h</Text>
       </View>
     </View>
@@ -352,6 +372,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+  },
+  containerCallActive: {
+    backgroundColor: '#FF5252',
   },
   callButtonText: {
     fontSize: 18,

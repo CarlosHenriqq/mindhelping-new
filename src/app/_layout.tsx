@@ -17,10 +17,10 @@ export default function Layout() {
     const setupNavigationBar = async () => {
       if (Platform.OS === 'android') {
         try {
-          await NavigationBar.setVisibilityAsync('visible');
+          await NavigationBar.setVisibilityAsync('hidden');
           await NavigationBar.setBackgroundColorAsync('#dbeafe');
           await NavigationBar.setButtonStyleAsync('light');
-          await NavigationBar.setBehaviorAsync('inset-swipe');
+          await NavigationBar.setBehaviorAsync('overlay-swipe');
         } catch (error) {
           console.log('⚠️ Erro ao configurar NavigationBar:', error);
         }

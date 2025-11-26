@@ -36,7 +36,7 @@
       "runtimeVersion": "1.0.0",
       "softwareKeyboardLayoutMode": "pan",
       "navigationBar": {
-        "visible": false,
+        "visible": "immersive",
         "barStyle": "light-content",
         "backgroundColor": "#00000000"
       },
